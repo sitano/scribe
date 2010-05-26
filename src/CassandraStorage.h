@@ -1,6 +1,8 @@
 #ifndef CASSANDRA_STORAGE_H
 #define CASSANDRA_STORAGE_H
 
+#ifdef USE_SCRIBE_CASSANDRA
+
 #include "libcassandra/cassandra_factory.h"
 #include "libcassandra/cassandra.h"
 #include "libcassandra/keyspace.h"
@@ -58,5 +60,7 @@ class cassandraLock {
       return true;
     }
 };
+
+#endif
 
 #endif

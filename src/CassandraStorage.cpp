@@ -1,5 +1,8 @@
 #include <limits>
 #include "common.h"
+
+#ifdef USE_SCRIBE_CASSANDRA
+
 #include "file.h"
 #include "conn_pool.h"
 #include <uuid/uuid.h>
@@ -230,3 +233,4 @@ bool CassandraStorage::createSymlink(std::string oldpath, std::string newpath) {
     return ret;
 }
 
+#endif
