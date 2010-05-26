@@ -8,17 +8,8 @@
 #include <uuid/uuid.h>
 #include "CassandraStorage.h"
 
-#define DEFAULT_CASSANDRA_PORT 9162
-
 using std::string;
-using std::ostringstream;
-using std::map;
 using boost::shared_ptr;
-using namespace apache::thrift;
-using namespace apache::thrift::protocol;
-using namespace apache::thrift::transport;
-using namespace apache::thrift::server;
-using namespace scribe::thrift;
 using namespace libcassandra;
 using namespace std;
 

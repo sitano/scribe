@@ -7,6 +7,8 @@
 #include "libcassandra/cassandra.h"
 #include "libcassandra/keyspace.h"
 
+#define DEFAULT_CASSANDRA_PORT 9162
+
 class CassandraStorage : public FileInterface {
  public:
   CassandraStorage(const std::string& name);
