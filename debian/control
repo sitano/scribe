@@ -1,0 +1,14 @@
+Source: scribe
+Section: devel
+Priority: extra
+Build-Depends: debhelper (>= 5), build-essential, autoconf, automake, pkg-config, thrift-compiler, libthrift-dev, libcassandra
+Maintainer: Brian McKinney <brianm@nearestisland.com>
+Standards-Version: 3.7.2
+
+Package: scribe-cassandra
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libthrift0, libcassandra
+Description: Aggregating server for streamed log data 
+ Scribe is a server for aggregating log data streamed in real time from a large
+ number of servers. It is designed to be scalable, extensible without client-side 
+ modification, and robust to failure of the network or any specific machine.
