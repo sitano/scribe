@@ -40,6 +40,9 @@ THRIFT = $(thrift_home)/bin/thrift
 if FACEBOOK
   FB_SOURCES = gen-cpp/ServiceManager_types.cpp gen-cpp/ServiceManager.cpp
   FB_CPPFLAGS = -I$(fb_home)
+  ENV_SOURCES = env_facebook.cpp
+else
+  ENV_SOURCES = env_default.cpp
 endif
 if DEBUG
    DEBUG_CPPFLAGS = -DDEBUG_TIMING
@@ -80,9 +83,10 @@ AM_LDFLAGS = $(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB)
 
 # Static -- multiple libraries can be defined
 if STATIC
-lib_LIBRARIES = libscribe.a
-libscribe_a_SOURCES  = gen-cpp/scribe.cpp gen-cpp/scribe_types.cpp gen-cpp/scribe_constants.cpp
-INTERNAL_LIBS = libscribe.a
+lib_LIBRARIES = libscribe.a libdynamicbucketupdater.a
+libscribe_a_SOURCES = gen-cpp/scribe.cpp gen-cpp/scribe_types.cpp gen-cpp/scribe_constants.cpp
+libdynamicbucketupdater_a_SOURCES = gen-cpp/BucketStoreMapping.cpp gen-cpp/bucketupdater_constants.cpp gen-cpp/bucketupdater_types.cpp 
+INTERNAL_LIBS = libscribe.a libdynamicbucketupdater.a
 endif
 
 # Shared -- multiple libraries can be defined
@@ -97,7 +101,7 @@ endif
 
 # Binaries -- multiple progs can be defined.
 bin_PROGRAMS = scribed
-scribed_SOURCES = store.cpp store_queue.cpp conf.cpp file.cpp conn_pool.cpp scribe_server.cpp $(FB_SOURCES)
+scribed_SOURCES = store.cpp store_queue.cpp conf.cpp file.cpp conn_pool.cpp scribe_server.cpp network_dynamic_config.cpp dynamic_bucket_updater.cpp $(FB_SOURCES) $(ENV_SOURCES)
 if USE_SCRIBE_HDFS
   scribed_SOURCES += HdfsFile.cpp
 endif
@@ -115,6 +119,7 @@ endif
 # We assume that a <name>+types.cpp will always be built from <name>.thrift.
 
 $(eval $(call thrift_template,.,$(srcdir)/../if/scribe.thrift, -I $(fb303_home)/share/ --cpp --py --php --java))
+$(eval $(call thrift_template,.,$(srcdir)/../if/bucketupdater.thrift, -I $(fb303_home)/share/ --cpp --py --php --java))
 
 if FACEBOOK
   $(eval $(call thrift_template,.,$(smc_home)/if/ServiceManager.thrift,--cpp))

@@ -24,13 +24,7 @@
 #ifndef SCRIBE_STORE_QUEUE_H
 #define SCRIBE_STORE_QUEUE_H
 
-#include <string>
-#include <queue>
-#include <vector>
-#include <pthread.h>
-
-#include "src/gen-cpp/scribe.h"
-#include "store.h"
+#include "common.h"
 
 class Store;
 
@@ -63,7 +57,9 @@ class StoreQueue {
 
   // WARNING: don't expect this to be exact, because it could change after you check.
   //          This is only for hueristics to decide when we're overloaded.
-  unsigned long long getSize(bool lock = true);
+  inline unsigned long long getSize() {
+    return msgQueueSize;
+  }
  private:
   void storeInitCommon();
   void configureInline(pStoreConf configuration);
