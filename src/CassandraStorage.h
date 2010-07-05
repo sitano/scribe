@@ -37,6 +37,7 @@ class CassandraStorage : public FileInterface {
   std::tr1::shared_ptr<libcassandra::Cassandra> client;
   std::string *kspName;
   std::string *cfName;    
+  std::string *categoryName;    
   std::string *fileName;    
     
   // disallow copy, assignment, and empty construction

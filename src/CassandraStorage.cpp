@@ -73,21 +73,46 @@ bool CassandraStorage::connectToPath(const char *uri) {
     while (*pnt == '/') {
         pnt++;
     }
-    string fileName_(pnt);
+    colon = strchr(pnt, '/');
+    if(!colon) {
+      categoryName = new string(pnt);
+      fileName = new string(*categoryName);
+    } else {
+      categoryName = new string(pnt, colon - pnt);
+
+      pnt = colon + 1;
+      while (*pnt == '/') {
+        pnt++;
+      }
+      fileName = new string(pnt);
+    }
     
     kspName = new string(kspName_);
     cfName = new string(cfName_);
-    fileName = new string(fileName_);
     CassandraFactory factory(host, port);
     tr1::shared_ptr<Cassandra> client_(factory.create());
     client = client_;
     connected = true;
-    LOG_OPER("Opened connection to remote Cassandra server [%s:%ld] [%s] [%s] [%s]", host.c_str(), port, kspName->c_str(), cfName->c_str(), fileName->c_str());
+    LOG_OPER("Opened connection to remote Cassandra server [%s:%ld] [%s] [%s] [%s] [%s]", 
+      host.c_str(),
+      port,
+      kspName->c_str(),
+      cfName->c_str(),
+      categoryName->c_str(),
+      fileName->c_str());
     
     return true;
 }
 
-CassandraStorage::CassandraStorage(const std::string& name) : FileInterface(name, false), inputBuffer_(NULL), bufferSize_(0), connected(false), kspName(NULL), cfName(NULL), fileName(NULL) {
+CassandraStorage::CassandraStorage(const std::string& name) : 
+  FileInterface(name, false),
+  inputBuffer_(NULL),
+  bufferSize_(0),
+  connected(false),
+  kspName(NULL),
+  cfName(NULL),
+  categoryName(NULL),
+  fileName(NULL) {
     LOG_OPER("[cassandra] Connecting to cassandra for %s", name.c_str());
     connectToPath(name.c_str());
     if (!connected) {
@@ -141,7 +166,7 @@ bool CassandraStorage::writeEntry(const std::string& data) {
         uuid_generate_time(uuid_c);
         std::string uuid((char *) uuid_c, 16);
         Keyspace *ksp = client->getKeyspace(*kspName);
-        ksp->insertColumn(*fileName, *cfName, uuid, data);
+        ksp->insertColumn(*categoryName, *cfName, *fileName, uuid, data);
     } catch (org::apache::cassandra::InvalidRequestException &ire) {
         cout << ire.why << endl;
         return false;
@@ -182,8 +207,9 @@ unsigned long CassandraStorage::fileSize() {
     if (connected) {
         org::apache::cassandra::ColumnParent col_parent;
         col_parent.column_family = *cfName;
+        col_parent.super_column = *fileName;
         Keyspace *ksp = client->getKeyspace(*kspName);
-        size = ksp->getCount(*fileName, col_parent);
+        size = ksp->getCount(*categoryName, col_parent);
     }    
     return size;
 }
@@ -191,9 +217,9 @@ unsigned long CassandraStorage::fileSize() {
 void CassandraStorage::deleteFile() {
     if (connected) {
         Keyspace *ksp = client->getKeyspace(*kspName);
-        ksp->remove(*fileName, *cfName, NULL, NULL);
+        ksp->remove(*categoryName, *cfName, *fileName, NULL);
     }
-    LOG_OPER("[cassandra] deleteFile %s", filename.c_str());
+    LOG_OPER("[cassandra] deleteFile %s", fileName->c_str());
 }
 
 void CassandraStorage::listImpl(const std::string& path,

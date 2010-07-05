@@ -1,0 +1,7 @@
+# Defaults for scribe initscript
+# sourced by /etc/init.d/scribe
+# installed at /etc/default/scribe by the maintainer scripts
+
+# Additional options that are passed to the Daemon.
+SCRIBE_CONFIG="/etc/scribe/scribe-cassandra.conf"
+DAEMON_OPTS="-c $SCRIBE_CONFIG"
