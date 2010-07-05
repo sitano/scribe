@@ -130,8 +130,10 @@ void scribe::startServer() {
   unsigned long mconn = g_Handler->getMaxConn();
   if (mconn > 0) {
     LOG_OPER("Throttle max_conn to %lu", mconn);
+#ifdef T_OVERLOAD_CLOSE_ON_ACCEPT
     server->setMaxConnections(mconn);
     server->setOverloadAction(T_OVERLOAD_CLOSE_ON_ACCEPT);
+#endif
   }
 
   server->serve();
