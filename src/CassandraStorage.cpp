@@ -74,17 +74,16 @@ bool CassandraStorage::connectToPath(const char *uri) {
         pnt++;
     }
     colon = strchr(pnt, '/');
-    if(!colon) {
-      categoryName = new string(pnt);
-      fileName = new string(*categoryName);
+    if (!colon) {
+        categoryName = new string(pnt);
+        fileName = new string(*categoryName);
     } else {
-      categoryName = new string(pnt, colon - pnt);
-
-      pnt = colon + 1;
-      while (*pnt == '/') {
-        pnt++;
-      }
-      fileName = new string(pnt);
+        categoryName = new string(pnt, colon - pnt);        
+        pnt = colon + 1;
+        while (*pnt == '/') {
+            pnt++;
+        }
+        fileName = new string(pnt);
     }
     
     kspName = new string(kspName_);
@@ -94,12 +93,12 @@ bool CassandraStorage::connectToPath(const char *uri) {
     client = client_;
     connected = true;
     LOG_OPER("Opened connection to remote Cassandra server [%s:%ld] [%s] [%s] [%s] [%s]", 
-      host.c_str(),
-      port,
-      kspName->c_str(),
-      cfName->c_str(),
-      categoryName->c_str(),
-      fileName->c_str());
+             host.c_str(),
+             port,
+             kspName->c_str(),
+             cfName->c_str(),
+             categoryName->c_str(),
+             fileName->c_str());
     
     return true;
 }
@@ -198,7 +197,7 @@ bool CassandraStorage::write(const std::string& data) {
 }
 
 void CassandraStorage::flush() {
-
+    
 }
 
 unsigned long CassandraStorage::fileSize() {
@@ -210,7 +209,7 @@ unsigned long CassandraStorage::fileSize() {
         col_parent.super_column = *fileName;
         Keyspace *ksp = client->getKeyspace(*kspName);
         size = ksp->getCount(*categoryName, col_parent);
-    }    
+    }
     return size;
 }
 
@@ -228,16 +227,16 @@ void CassandraStorage::listImpl(const std::string& path,
 }
 
 bool CassandraStorage::readNext(std::string& _return) {
-   return false;           // frames not yet supported
+    return false;           // frames not yet supported
 }
 
 string CassandraStorage::getFrame(unsigned data_length) {
-  return std::string();    // not supported
+    return std::string();    // not supported
 }
 
 bool CassandraStorage::createDirectory(std::string path) {
-  // opening the file will create the directories.
-  return true;
+    // opening the file will create the directories.
+    return true;
 }
 
 /**
