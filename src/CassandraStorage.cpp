@@ -164,8 +164,8 @@ bool CassandraStorage::writeEntry(const std::string& data) {
         uuid_t uuid_c;
         uuid_generate_time(uuid_c);
         std::string uuid((char *) uuid_c, 16);
-        Keyspace *ksp = client->getKeyspace(*kspName);
-        ksp->insertColumn(*categoryName, *cfName, *fileName, uuid, data);
+        client->setKeyspace(*kspName);
+        client->insertColumn(*categoryName, *cfName, *fileName, uuid, data);
     } catch (org::apache::cassandra::InvalidRequestException &ire) {
         cout << ire.why << endl;
         return false;
@@ -207,16 +207,17 @@ unsigned long CassandraStorage::fileSize() {
         org::apache::cassandra::ColumnParent col_parent;
         col_parent.column_family = *cfName;
         col_parent.super_column = *fileName;
-        Keyspace *ksp = client->getKeyspace(*kspName);
-        size = ksp->getCount(*categoryName, col_parent);
+        client->setKeyspace(*kspName);
+        size = 0;
+	//size = ksp->getCount(*categoryName, col_parent);
     }
     return size;
 }
 
 void CassandraStorage::deleteFile() {
     if (connected) {
-        Keyspace *ksp = client->getKeyspace(*kspName);
-        ksp->remove(*categoryName, *cfName, *fileName, NULL);
+        client->setKeyspace(*kspName);
+        client->remove(*categoryName, *cfName, *fileName, NULL);
     }
     LOG_OPER("[cassandra] deleteFile %s", fileName->c_str());
 }
