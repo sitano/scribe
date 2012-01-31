@@ -57,6 +57,9 @@ EXTERNAL_LIBS += -levent -lpthread
 if USE_SCRIBE_HDFS
   EXTERNAL_LIBS += -lhdfs -ljvm
 endif
+if USE_SCRIBE_CASSANDRA
+  EXTERNAL_LIBS += -lcassandra -luuid
+endif
 
 # Section 2 ############################################################################
 # Set common flags recognized by automake.
@@ -92,7 +95,7 @@ endif
 if SHARED
 shareddir = $(prefix)/lib
 shared_PROGRAMS = libscribe.so
-libscribe_so_SOURCES = gen-cpp/scribe.cpp gen-cpp/scribe_types.cpp
+libscribe_so_SOURCES  = gen-cpp/scribe.cpp gen-cpp/scribe_types.cpp
 libscribe_so_CXXFLAGS = $(SHARED_CXXFLAGS)
 libscribe_so_LDFLAGS = $(SHARED_LDFLAGS)
 INTERNAL_LIBS =  libscribe.so
@@ -103,6 +106,9 @@ bin_PROGRAMS = scribed
 scribed_SOURCES = store.cpp store_queue.cpp conf.cpp file.cpp conn_pool.cpp scribe_server.cpp network_dynamic_config.cpp dynamic_bucket_updater.cpp $(FB_SOURCES) $(ENV_SOURCES)
 if USE_SCRIBE_HDFS
   scribed_SOURCES += HdfsFile.cpp
+endif
+if USE_SCRIBE_CASSANDRA
+  scribed_SOURCES += CassandraStorage.cpp
 endif
 scribed_LDADD = $(EXTERNAL_LIBS) $(INTERNAL_LIBS)
 

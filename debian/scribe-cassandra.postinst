@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -eu
+
+USER="scribe"
+GROUP="$USER"
+
+chown $USER:$GROUP /var/log/scribe
+
+#DEBHELPER#

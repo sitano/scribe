@@ -22,6 +22,9 @@
 #include "common.h"
 #include "file.h"
 #include "HdfsFile.h"
+#ifdef USE_SCRIBE_CASSANDRA
+# include "CassandraStorage.h"
+#endif
 
 #define INITIAL_BUFFER_SIZE (64 * 1024)
 #define LARGE_BUFFER_SIZE (16 * INITIAL_BUFFER_SIZE) /* arbitrarily chosen */
@@ -37,6 +40,10 @@ boost::shared_ptr<FileInterface> FileInterface::createFileInterface(const std::s
     return shared_ptr<FileInterface>(new StdFile(name, framed));
   } else if (0 == type.compare("hdfs")) {
     return shared_ptr<FileInterface>(new HdfsFile(name));
+#ifdef USE_SCRIBE_CASSANDRA      
+  } else if (0 == type.compare("cassandra")) {
+    return shared_ptr<FileInterface>(new CassandraStorage(name));
+#endif
   } else {
     return shared_ptr<FileInterface>();
   }
