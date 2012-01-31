@@ -226,8 +226,8 @@ void CassandraStorage::listImpl(const std::string& path,
 
 }
 
-bool CassandraStorage::readNext(std::string& _return) {
-    return false;           // frames not yet supported
+long CassandraStorage::readNext(std::string& _return) {
+    return 0;           // frames not yet supported
 }
 
 string CassandraStorage::getFrame(unsigned data_length) {

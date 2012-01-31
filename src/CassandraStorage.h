@@ -23,7 +23,7 @@ class CassandraStorage : public FileInterface {
   bool write(const std::string& data);
   void flush();
   unsigned long fileSize();
-  bool readNext(std::string& _return);
+  long readNext(std::string& _return);
   void deleteFile();
   void listImpl(const std::string& path, std::vector<std::string>& _return);
   std::string getFrame(unsigned data_size);
