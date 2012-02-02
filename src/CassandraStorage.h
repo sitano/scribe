@@ -46,7 +46,7 @@ class CassandraStorage : public FileInterface {
   CassandraStorage& operator=(CassandraStorage& rhs);
 
   bool connectToPath(const char *uri);
-  void writeEntry(std::vector<libcassandra::Cassandra::SuperColumnInsertTuple> *scit, const std::string& data);
+  void writeEntry(std::vector<libcassandra::Cassandra::ColumnInsertTuple> *cit, std::vector<libcassandra::Cassandra::SuperColumnInsertTuple> *scit, const std::string& data);
 };
 
 /**
@@ -67,4 +67,3 @@ class cassandraLock {
 #endif
 
 #endif
-

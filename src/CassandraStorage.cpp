@@ -8,6 +8,7 @@
 #include "CassandraStorage.h"
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
+#include <jansson.h>
 
 using std::string;
 using boost::shared_ptr;
@@ -158,48 +159,70 @@ void CassandraStorage::close() {
     connected = false;
 }
 
-void CassandraStorage::writeEntry(std::vector<Cassandra::SuperColumnInsertTuple> *scit, const std::string& data) {
-    std::string cn = string("data");
-
+void CassandraStorage::writeEntry(std::vector<Cassandra::ColumnInsertTuple> *cit, std::vector<Cassandra::SuperColumnInsertTuple> *scit, const std::string& data) {
     // ignore empty data or just a newline (\n) char
     if (data.length() <= 0 || (data.length() == 1 && data[0] == '\n')) {
     	return;
     }
+    std::string cn = string("data");
 
+    cout << data << endl;
+    
     std::map<std::string, std::string> values;
-    char_separator<char> sep("!##!##!##!");
-    tokenizer< boost::char_separator<char> > tokens(data, sep);
-    BOOST_FOREACH(string token, tokens) {
-    	unsigned int separatorPos = token.find_first_of(':');
-    	cout << token << endl;
-    	if (separatorPos != string::npos) {
-    		string key = token.substr(0, separatorPos);
-    		string value = token.substr(separatorPos + 1, string::npos);
-//    		cout << key << endl;
-
-    		values[key] = value;
-    	}
+    json_error_t error;
+    json_t* jsonRoot = json_loads(data.c_str(), 0, &error);
+    if (jsonRoot) {
+	    cout << "json parsed" << endl;
+	    // get rowKey which is required
+	    json_t *rowKeyObj = json_object_get(jsonRoot, "rowKey");
+	    const char* rowKey = "";
+        if (rowKeyObj) {
+    	    const char* rowKey = json_string_value(rowKeyObj);
+	        cout << "rowKey: " << rowKey << endl;
+        }
+        else {
+            LOG_OPER("[cassandra][ERROR] rowKey not set %s", data.c_str());
+            return;
+        }
+        
+        // get optional super column name
+	    json_t *scNameObj = json_object_get(jsonRoot, "scName");
+	    const char* scName = "";
+        if (scNameObj) {
+    	    scName = json_string_value(scNameObj);
+	        cout << "scName: " << scName << endl;
+        }
+        
+        // get actual column data
+        json_t *dataObj = json_object_get(jsonRoot, "data");  
+        if(json_is_object(dataObj)) {
+            const char* key;
+            json_t* value;
+            json_object_foreach(dataObj, key, value) {
+                cout << "key: " << key << " value: " << json_string_value(value) << endl;
+                // CF, KEY, SCF, COLUM NAME, VALUE
+                if (strlen(scName) > 0) {
+                    // create column family Tuple
+                    Cassandra::SuperColumnInsertTuple t(*categoryName, rowKey, scName, key, json_string_value(value));
+                    scit->push_back(t);
+                }
+                else {
+                    // create Super Column Tuple
+                    Cassandra::ColumnInsertTuple t(*categoryName, rowKey, key, json_string_value(value));
+                    cit->push_back(t);
+                }
+            }
+        }
+        else {
+            LOG_OPER("[cassandra][ERROR] data not set - at least one value is required: %s", data.c_str());
+            return;
+        }
+	    
+	    json_decref(jsonRoot);
     }
-
-    if (values["csc"].length() == 0) {
-    	//LOG_OPER("[cassandra][ERROR] missing 'csc' element in message %s!", data.c_str());
-    	LOG_OPER("[cassandra][ERROR] missing 'csc' element in message!");
-        return;
+    else {
+    	LOG_OPER("[cassandra][ERROR] Not a valid JSON String \"%s\"", data.c_str());
     }
-    if (values["ckey"].length() == 0) {
-    	//LOG_OPER("[cassandra][ERROR] missing 'ckey' element in message %s!", data.c_str());
-    	LOG_OPER("[cassandra][ERROR] missing 'ckey' element in message!");
-        return;
-    }
-    if (values["data"].length() == 0) {
-    	//LOG_OPER("[cassandra][ERROR] missing 'data' element in message %s!", data.c_str());
-    	LOG_OPER("[cassandra][ERROR] missing 'data' element in message!");
-		return;
-	}
-
-    // CF, KEY, SCF, COLUM NAME, VALUE
-    Cassandra::SuperColumnInsertTuple t(*categoryName, values["ckey"].c_str(), values["csc"].c_str(), cn, values["data"].c_str());
-    scit->push_back(t);
 }
 
 bool CassandraStorage::write(const std::string& data) {
@@ -214,27 +237,27 @@ bool CassandraStorage::write(const std::string& data) {
     size_t start = 0U, found;
 
     std::vector<Cassandra::SuperColumnInsertTuple> *scit = new std::vector<Cassandra::SuperColumnInsertTuple>();
-    std::vector<Cassandra::ColumnInsertTuple> cit;
+    std::vector<Cassandra::ColumnInsertTuple> *cit = new std::vector<Cassandra::ColumnInsertTuple>();
 
     do {
         found = data.find_first_of('\n', start + 1U);
         if (found == string::npos) {
-           writeEntry(scit, data.substr(start));
+           writeEntry(cit, scit, data.substr(start));
            break;
         }
-        writeEntry(scit, data.substr(start, found - start));
+        writeEntry(cit, scit, data.substr(start, found - start));
         start = found + 1U;
     } while (start < data.length());
 
-    if (scit->size() > 0) {
+    if (scit->size() > 0 || cit->size() > 0) {
 		try {
 			client->setKeyspace(*kspName);
-			client->batchInsert(cit, *scit);
+			client->batchInsert(*cit, *scit);
 		} catch (org::apache::cassandra::InvalidRequestException &ire) {
 			cout << ire.why << endl;
 			return false;
 		}
-		LOG_OPER("[Cassandra] wrote %i columns", scit->size());
+		LOG_OPER("[Cassandra] wrote %i super columns and %i columns", scit->size(), cit->size());
     }
     else {
     	LOG_OPER("[Cassandra] nothing to write");
