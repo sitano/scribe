@@ -6,12 +6,14 @@
 #include "file.h"
 #include "conn_pool.h"
 #include "CassandraStorage.h"
+#include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
 
 using std::string;
 using boost::shared_ptr;
 using namespace libcassandra;
 using namespace std;
+using namespace boost;
 
 bool CassandraStorage::connectToPath(const char *uri) {
     connected = false;
@@ -165,24 +167,18 @@ void CassandraStorage::writeEntry(std::vector<Cassandra::SuperColumnInsertTuple>
     }
 
     std::map<std::string, std::string> values;
-    typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-    boost::char_separator<char> sep("##");
-    tokenizer tokens(data, sep);
-    for (tokenizer::iterator tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
-        boost::char_separator<char> keyValueSep(":");
-        tokenizer keyValue(*tok_iter, keyValueSep);
-        std::vector<std::string> collection;
-        for (tokenizer::iterator keyValue_tok_iter = keyValue.begin(); keyValue_tok_iter != keyValue.end(); ++keyValue_tok_iter) {
-            collection.push_back(*keyValue_tok_iter);
-        }
+    char_separator<char> sep("!##!##!##!");
+    tokenizer< boost::char_separator<char> > tokens(data, sep);
+    BOOST_FOREACH(string token, tokens) {
+    	unsigned int separatorPos = token.find_first_of(':');
+    	cout << token << endl;
+    	if (separatorPos != string::npos) {
+    		string key = token.substr(0, separatorPos);
+    		string value = token.substr(separatorPos + 1, string::npos);
+//    		cout << key << endl;
 
-        if (collection.size() >= 2) {
-        	values[collection.at(0).c_str()] = collection.at(1).c_str();
-        }
-        else {
-        	LOG_OPER("[Cassandra][ERROR] cannot split '%s' - discarding value", tok_iter->c_str());
-        	return;
-        }
+    		values[key] = value;
+    	}
     }
 
     if (values["csc"].length() == 0) {
