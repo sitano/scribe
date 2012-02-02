@@ -58,7 +58,7 @@ if USE_SCRIBE_HDFS
   EXTERNAL_LIBS += -lhdfs -ljvm
 endif
 if USE_SCRIBE_CASSANDRA
-  EXTERNAL_LIBS += -lcassandra -luuid
+  EXTERNAL_LIBS += -lcassandra
 endif
 
 # Section 2 ############################################################################
