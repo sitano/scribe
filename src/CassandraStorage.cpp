@@ -5,11 +5,8 @@
 
 #include "file.h"
 #include "conn_pool.h"
-#include <uuid/uuid.h>
 #include "CassandraStorage.h"
 #include <boost/tokenizer.hpp>
-#include <iostream>
-#include <map>
 
 using std::string;
 using boost::shared_ptr;
@@ -189,15 +186,13 @@ void CassandraStorage::writeEntry(std::vector<Cassandra::SuperColumnInsertTuple>
         cout << "MISSING CKEY!" << endl;
         return;
     }
-    cout << "added value" << endl;
-    cout << values["csc"].c_str() << " -- " << values["ckey"].c_str() << endl;
+    //cout << "added value" << endl;
+    //cout << values["csc"].c_str() << " -- " << values["ckey"].c_str() << endl;
 
 
     //<< " -- " << values["data"].c_str() << endl;
 
     // CF, KEY, SCF, COLUM NAME, VALUE
-    //LOG_OPER("[debug] %s", values["csc"].c_str());
-    LOG_OPER("writing");
     Cassandra::SuperColumnInsertTuple t(*categoryName, values["ckey"].c_str(), values["csc"].c_str(), cn, values["data"].c_str());
     scit->push_back(t);
 }
@@ -228,7 +223,7 @@ bool CassandraStorage::write(const std::string& data) {
         start = found + 1U;
     } while (start < data.length());
 
-    cout << "Hi" << (*scit).size() << endl;
+    cout << "[Cassandra] writing " << scit->size() << " supercolumns " << endl;
 
     try {
         client->setKeyspace(*kspName);
@@ -294,4 +289,3 @@ bool CassandraStorage::createSymlink(std::string oldpath, std::string newpath) {
 }
 
 #endif
-
