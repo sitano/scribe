@@ -157,47 +157,54 @@ void CassandraStorage::close() {
 }
 
 void CassandraStorage::writeEntry(std::vector<Cassandra::SuperColumnInsertTuple> *scit, const std::string& data) {
-    uuid_t uuid_c;
-    uuid_generate_time(uuid_c);
-    std::string uuid((char *) uuid_c, 16);
     std::string cn = string("data");
+
+    // ignore empty data or just a newline (\n) char
+    if (data.length() <= 0 || (data.length() == 1 && data[0] == '\n')) {
+    	return;
+    }
 
     std::map<std::string, std::string> values;
     typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
     boost::char_separator<char> sep("##");
     tokenizer tokens(data, sep);
-    for (tokenizer::iterator tok_iter = tokens.begin();tok_iter != tokens.end(); ++tok_iter) {
-        //cout << *tok_iter << endl;
+    for (tokenizer::iterator tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
         boost::char_separator<char> keyValueSep(":");
         tokenizer keyValue(*tok_iter, keyValueSep);
         std::vector<std::string> collection;
         for (tokenizer::iterator keyValue_tok_iter = keyValue.begin(); keyValue_tok_iter != keyValue.end(); ++keyValue_tok_iter) {
             collection.push_back(*keyValue_tok_iter);
         }
-        values[collection.at(0).c_str()] = collection.at(1).c_str();
+
+        if (collection.size() >= 2) {
+        	values[collection.at(0).c_str()] = collection.at(1).c_str();
+        }
+        else {
+        	LOG_OPER("[Cassandra][ERROR] cannot split '%s' - discarding value", tok_iter->c_str());
+        	return;
+        }
     }
 
-
-    if (strcmp(values["csc"].c_str(), "")== 0) {
-        cout << "MISSING CSC!" << endl;
+    if (values["csc"].length() == 0) {
+    	//LOG_OPER("[cassandra][ERROR] missing 'csc' element in message %s!", data.c_str());
+    	LOG_OPER("[cassandra][ERROR] missing 'csc' element in message!");
         return;
     }
-    if (strcmp(values["ckey"].c_str(), "")== 0) {
-        cout << "MISSING CKEY!" << endl;
+    if (values["ckey"].length() == 0) {
+    	//LOG_OPER("[cassandra][ERROR] missing 'ckey' element in message %s!", data.c_str());
+    	LOG_OPER("[cassandra][ERROR] missing 'ckey' element in message!");
         return;
     }
-    //cout << "added value" << endl;
-    //cout << values["csc"].c_str() << " -- " << values["ckey"].c_str() << endl;
-
-
-    //<< " -- " << values["data"].c_str() << endl;
+    if (values["data"].length() == 0) {
+    	//LOG_OPER("[cassandra][ERROR] missing 'data' element in message %s!", data.c_str());
+    	LOG_OPER("[cassandra][ERROR] missing 'data' element in message!");
+		return;
+	}
 
     // CF, KEY, SCF, COLUM NAME, VALUE
     Cassandra::SuperColumnInsertTuple t(*categoryName, values["ckey"].c_str(), values["csc"].c_str(), cn, values["data"].c_str());
     scit->push_back(t);
 }
-
-//csc:bla##ckey:##BYTES##
 
 bool CassandraStorage::write(const std::string& data) {
     if (!isOpen()) {
@@ -214,7 +221,7 @@ bool CassandraStorage::write(const std::string& data) {
     std::vector<Cassandra::ColumnInsertTuple> cit;
 
     do {
-        found = data.find_first_of('\n', start + 1U);;
+        found = data.find_first_of('\n', start + 1U);
         if (found == string::npos) {
            writeEntry(scit, data.substr(start));
            break;
@@ -223,14 +230,18 @@ bool CassandraStorage::write(const std::string& data) {
         start = found + 1U;
     } while (start < data.length());
 
-    cout << "[Cassandra] writing " << scit->size() << " supercolumns " << endl;
-
-    try {
-        client->setKeyspace(*kspName);
-        client->batchInsert(cit, *scit);
-    } catch (org::apache::cassandra::InvalidRequestException &ire) {
-        cout << ire.why << endl;
-        return false;
+    if (scit->size() > 0) {
+		try {
+			client->setKeyspace(*kspName);
+			client->batchInsert(cit, *scit);
+		} catch (org::apache::cassandra::InvalidRequestException &ire) {
+			cout << ire.why << endl;
+			return false;
+		}
+		LOG_OPER("[Cassandra] wrote %i columns", scit->size());
+    }
+    else {
+    	LOG_OPER("[Cassandra] nothing to write");
     }
 
     return ret;
@@ -248,7 +259,7 @@ unsigned long CassandraStorage::fileSize() {
         col_parent.column_family = *cfName;
         col_parent.super_column = *fileName;
         client->setKeyspace(*kspName);
-        size = 1024;
+        size = 0L;
         //client->getCount(*categoryName, col_parent);
     }
     return size;
