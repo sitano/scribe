@@ -8,7 +8,6 @@
 #include "CassandraStorage.h"
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
-#include <jansson.h>
 
 using std::string;
 using boost::shared_ptr;
@@ -159,6 +158,21 @@ void CassandraStorage::close() {
     connected = false;
 }
 
+string CassandraStorage::getColumnStringValue(json_t* jObj) {
+	int type = json_typeof(jObj);
+	ostringstream o;
+	switch (type) {
+		case JSON_STRING:
+			return json_string_value(jObj);
+		case JSON_INTEGER:
+			o << (uint64_t)json_integer_value(jObj);
+			return o.str();
+		default:
+			LOG_OPER("[cassandra][ERROR] value format not valid");
+			return "";
+	}
+}
+
 void CassandraStorage::writeEntry(std::vector<Cassandra::ColumnInsertTuple> *cit, std::vector<Cassandra::SuperColumnInsertTuple> *scit, const std::string& data) {
     // ignore empty data or just a newline (\n) char
     if (data.length() <= 0 || (data.length() == 1 && data[0] == '\n')) {
@@ -172,13 +186,13 @@ void CassandraStorage::writeEntry(std::vector<Cassandra::ColumnInsertTuple> *cit
     json_error_t error;
     json_t* jsonRoot = json_loads(data.c_str(), 0, &error);
     if (jsonRoot) {
-	    cout << "json parsed" << endl;
+	    LOG_DBG("json parsed");
 	    // get rowKey which is required
 	    json_t *rowKeyObj = json_object_get(jsonRoot, "rowKey");
 	    const char* rowKey = "";
         if (rowKeyObj) {
-    	    const char* rowKey = json_string_value(rowKeyObj);
-	        cout << "rowKey: " << rowKey << endl;
+    	    rowKey = getColumnStringValue(rowKeyObj).c_str();
+    	    LOG_DBG("rowKey: %s", rowKey);
         }
         else {
             LOG_OPER("[cassandra][ERROR] rowKey not set %s", data.c_str());
@@ -189,8 +203,8 @@ void CassandraStorage::writeEntry(std::vector<Cassandra::ColumnInsertTuple> *cit
 	    json_t *scNameObj = json_object_get(jsonRoot, "scName");
 	    const char* scName = "";
         if (scNameObj) {
-    	    scName = json_string_value(scNameObj);
-	        cout << "scName: " << scName << endl;
+    	    scName = getColumnStringValue(scNameObj).c_str();
+    	    LOG_DBG("scName: %s", scName);
         }
         
         // get actual column data
@@ -199,16 +213,23 @@ void CassandraStorage::writeEntry(std::vector<Cassandra::ColumnInsertTuple> *cit
             const char* key;
             json_t* value;
             json_object_foreach(dataObj, key, value) {
-                cout << "key: " << key << " value: " << json_string_value(value) << endl;
+            	string columnValue = getColumnStringValue(value);
+
+            	LOG_DBG("type %i", json_typeof(value));
                 // CF, KEY, SCF, COLUM NAME, VALUE
+                LOG_DBG("categoryName %s", categoryName->c_str());
+                LOG_DBG("rowKey %s", rowKey);
+                LOG_DBG("scName %s", scName);
+                LOG_DBG("key %s", key);
+                LOG_DBG("value %s", columnValue.c_str());
                 if (strlen(scName) > 0) {
                     // create column family Tuple
-                    Cassandra::SuperColumnInsertTuple t(*categoryName, rowKey, scName, key, json_string_value(value));
+                	Cassandra::SuperColumnInsertTuple t(*categoryName, rowKey, scName, key, columnValue);
                     scit->push_back(t);
                 }
                 else {
                     // create Super Column Tuple
-                    Cassandra::ColumnInsertTuple t(*categoryName, rowKey, key, json_string_value(value));
+                	Cassandra::ColumnInsertTuple t(*categoryName, rowKey, key, columnValue);
                     cit->push_back(t);
                 }
             }
