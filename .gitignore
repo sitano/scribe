@@ -9,3 +9,6 @@ install-sh
 missing
 mkinstalldirs
 *.o
+*.a
+test/scribe.test.*
+test/scribed.out.*

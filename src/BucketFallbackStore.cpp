@@ -143,6 +143,7 @@ void BucketFallbackStore::periodicCheck() {
                 numBuckets++;
                 buckets.push_back(deadBuckets[i]);
                 bucketsToRemove.push_back(i);
+                LOG_OPER("[%s] Bucket #%i alive", categoryHandled.c_str(), i);
             }
         }
 
@@ -160,7 +161,6 @@ void BucketFallbackStore::periodicCheck() {
         setStatus("");
     }
     else {
-        // TODO: bucket0 is not used in random - buckets is never empty!
         if (numBuckets > 0) {
             stringstream msg;
             msg << "Buckets not available: " << deadBuckets.size();

@@ -36,30 +36,12 @@ CassandraStore::~CassandraStore() {
 void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
     Store::configure(configuration, parent);
     // Error checking is done on open()
-    std::string tmp;
+    if (!configuration->getString("remote_host", remoteHost))  {
+        LOG_OPER("[%s] Bad Config - remote_host not set", categoryHandled.c_str());
+    }
 
-    cout << *configuration << endl;
-
-    string remoteServers;
-    configuration->getString("remote_hosts", remoteServers);
-    list<string> remoteServerList;
-    split(remoteServerList, remoteServers, is_any_of(", "), token_compress_on);
-    BOOST_FOREACH(string serverStr, remoteServerList) {
-        vector<string> serverPairVector;
-        split(serverPairVector, serverStr, is_any_of(":"));
-
-        size_t size = serverPairVector.size();
-        if (size == 1) {
-            server_pair_t serverPair(serverPairVector[0],
-                    DEFAULT_CASSANDRA_PORT);
-            servers.push_back(serverPair);
-        } else if (size == 2) {
-            server_pair_t serverPair(serverPairVector[0],
-                    strtol(serverPairVector[1].c_str(), NULL, 0));
-            servers.push_back(serverPair);
-        } else {
-            LOG_OPER("Server not valid <%s>", serverStr.c_str());
-        }
+    if (!configuration->getInt("remote_port", remotePort)) {
+        remotePort = DEFAULT_CASSANDRA_PORT;
     }
 
     if (!configuration->getInt("timeout", timeout)) {
@@ -82,29 +64,26 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
 
 void CassandraStore::periodicCheck() {
     // nothing for now
-    // TODO: re add dead servers
 }
 
 bool CassandraStore::open() {
     if (isOpen()) {
         return (true);
     }
-    if (servers.empty()) {
-        setStatus("Bad config - no remote Cassandra Servers");
-        return false;
-    } else {
-        // TODO: libcassandra doesnt support connection pooling at the moment
-        // for now we create multiple cassandra clients and do the random our self
-        // libcassandra needs some tweaking at this point
-        BOOST_FOREACH(server_pair_t serverPair, servers) {
-            CassandraFactory factory(serverPair.first,
-                    serverPair.second);
-            tr1::shared_ptr<Cassandra> client_(factory.create());
-            clients.push_back(client_);
-        }
-        opened = true;
+    opened = true;
+    try {
+        CassandraFactory factory(remoteHost, remotePort);
+        tr1::shared_ptr<Cassandra> client_(factory.create());
+        client = client_;
     }
-    LOG_OPER("[%s] [cassandra] We have %lu clients ready for business", categoryHandled.c_str(), clients.size());
+    catch (apache::thrift::TException& e) {
+        cout << e.what() << endl;
+        opened = false;
+    }
+    catch (std::exception e) {
+        cout << e.what() << endl;
+        opened = false;
+    }
 
     if (opened) {
         // clear status on success
@@ -117,9 +96,8 @@ bool CassandraStore::open() {
 
 void CassandraStore::close() {
     if (opened) {
-        LOG_OPER("[%s] [cassandra] disconnected all %lu clients", categoryHandled.c_str(), clients.size());
+        LOG_OPER("[%s] [cassandra] disconnected client", categoryHandled.c_str());
     }
-    clients.clear();
     opened = false;
 }
 
@@ -132,7 +110,8 @@ shared_ptr<Store> CassandraStore::copy(const std::string &category) {
             multiCategory);
     shared_ptr<Store> copied = shared_ptr<Store> (store);
     store->timeout = timeout;
-    store->servers = servers;
+    store->remoteHost = remoteHost;
+    store->remotePort = remotePort;
     store->gzip = gzip;
     store->categoryAsCfName = categoryAsCfName;
     store->keyspace = keyspace;
@@ -162,29 +141,29 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         // identify if message is gzipped
         string message;
         message = (*iter)->message;
-        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-                (*iter)->message.at(1),
-                (unsigned int)(*iter)->message.at(2),
-                (unsigned int)(*iter)->message.at(3));
-        if ((unsigned int) (*iter)->message[0] == 0x1f
-                && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
-            cout << message << endl;
-            ostringstream gzMessage;
-            ostringstream rawMessage;
-            gzMessage << (*iter)->message;
-            filtering_streambuf<input> gzFilter;
-            gzFilter.push(gzip_decompressor());
-            gzFilter.push(gzMessage);
-
-            boost::iostreams::copy(gzFilter, rawMessage);
-
-            message = rawMessage.str();
-            cout << "ungzipped: " << message << endl;
-        }
-        else {
-            message = (*iter)->message;
-        }
+//        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
+//        printf("%x - %x - %x - %x", (*iter)->message.at(0),
+//                (*iter)->message.at(1),
+//                (unsigned int)(*iter)->message.at(2),
+//                (unsigned int)(*iter)->message.at(3));
+//        if ((unsigned int) (*iter)->message[0] == 0x1f
+//                && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
+//            cout << message << endl;
+//            ostringstream gzMessage;
+//            ostringstream rawMessage;
+//            gzMessage << (*iter)->message;
+//            filtering_streambuf<input> gzFilter;
+//            gzFilter.push(gzip_decompressor());
+//            gzFilter.push(gzMessage);
+//
+//            boost::iostreams::copy(gzFilter, rawMessage);
+//
+//            message = rawMessage.str();
+//            cout << "ungzipped: " << message << endl;
+//        }
+//        else {
+//            message = (*iter)->message;
+//        }
 
         string rowKey;
         string scName;
@@ -195,20 +174,27 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
 
     if (scit->size() > 0 || cit->size() > 0) {
         try {
-            // TODO: use random client
-            clients.at(0)->setKeyspace(keyspace);
-            clients.at(0)->batchInsert(*cit, *scit);
-            LOG_OPER("[%s] [Cassandra] wrote %lu super columns and %lu columns", categoryHandled.c_str(), scit->size(), cit->size());
+            client->setKeyspace(keyspace);
+            // TODO: make ConsistencyLevel configurable
+            unsigned long start = scribe::clock::nowInMsec();
+            client->batchInsert(*cit, *scit, org::apache::cassandra::ConsistencyLevel::ONE);
+            unsigned long runtime = scribe::clock::nowInMsec() - start;
+            LOG_OPER("[%s] [Cassandra] [%s] wrote %lu super columns and %lu columns in <%lu>",
+                    categoryHandled.c_str(), client->getHost().c_str(), scit->size(),
+                    cit->size(), runtime);
         } catch (org::apache::cassandra::InvalidRequestException &ire) {
             cout << ire.why << endl;
+            success = false;
+        }
+        catch (std::exception& e) {
+            close();
+            cout << e.what() << endl;
             success = false;
         }
     } else {
         LOG_OPER("[%s] [Cassandra] nothing to write", categoryHandled.c_str());
     }
 
-    free(scit);
-    free(cit);
     return success;
 }
 
@@ -269,15 +255,15 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
                     LOG_DBG("could not get value for %s", key);
                 }
 
+                string columnFamily_ = (categoryAsCfName) ? categoryHandled.c_str() : columnFamily;
                 if (scName.empty()) {
-                    Cassandra::ColumnInsertTuple t(categoryHandled.c_str(),
+                    Cassandra::ColumnInsertTuple t(columnFamily_,
                             rowKey.c_str(), key, columnValue);
                     cit->push_back(t);
                 }
                 else {
-                    Cassandra::SuperColumnInsertTuple t(
-                            categoryHandled.c_str(), rowKey.c_str(),
-                            scName.c_str(), key, columnValue);
+                    Cassandra::SuperColumnInsertTuple t(columnFamily_,
+                            rowKey.c_str(), scName.c_str(), key, columnValue);
                     scit->push_back(t);
                 }
 
@@ -293,7 +279,7 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
 
         json_decref(jsonRoot);
     } else {
-        LOG_OPER("[cassandra][ERROR] Not a valid JSON String \"%s\"", message.c_str());
+        LOG_OPER("[cassandra][ERROR] Not a valid JSON String '%s'", message.c_str());
         return false;
     }
     return true;

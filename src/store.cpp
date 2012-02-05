@@ -2302,7 +2302,7 @@ bool BucketStore::open() {
     LOG_OPER("[%s] Can't open bucket store with <%d> of <%lu> buckets", categoryHandled.c_str(), (int)buckets.size(), numBuckets);
     return false;
   }
-  cout << "BucketStore::open()" << endl;
+
   for (std::vector<shared_ptr<Store> >::iterator iter = buckets.begin();
        iter != buckets.end();
        ++iter) {

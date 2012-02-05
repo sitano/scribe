@@ -56,13 +56,13 @@ protected:
 
     // configuration
     long int timeout;
-    typedef std::pair<std::string, int> server_pair_t;
-    server_vector_t servers;
+    long int remotePort;
+    std::string remoteHost;
     bool gzip;
     bool categoryAsCfName;
     std::string keyspace;
     std::string columnFamily;
-    std::vector<std::tr1::shared_ptr<libcassandra::Cassandra> > clients;
+    std::tr1::shared_ptr<libcassandra::Cassandra> client;
 
     // state
     bool opened;
