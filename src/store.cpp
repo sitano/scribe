@@ -28,6 +28,10 @@
 #include "common.h"
 #include "scribe_server.h"
 #include "network_dynamic_config.h"
+#include "BucketFallbackStore.h"
+#ifdef USE_SCRIBE_CASSANDRA
+# include "CassandraStore.h"
+#endif
 
 using namespace std;
 using namespace boost;
@@ -93,6 +97,10 @@ Store::createStore(StoreQueue* storeq, const string& type,
   } else if (0 == type.compare("bucket")) {
     return shared_ptr<Store>(new BucketStore(storeq, category,
                                             multi_category));
+  } else if (0 == type.compare("bucketfallback")) {
+      LOG_OPER('bucket fallback create')
+    return shared_ptr<Store>(new BucketFallbackStore(storeq, category,
+                                            multi_category));
   } else if (0 == type.compare("thriftfile")) {
     return shared_ptr<Store>(new ThriftFileStore(storeq, category,
                                                 multi_category));
@@ -107,8 +115,13 @@ Store::createStore(StoreQueue* storeq, const string& type,
     return shared_ptr<Store>(new MultiFileStore(storeq, category,
                                                 multi_category));
   } else if (0 == type.compare("thriftmultifile")) {
-    return shared_ptr<Store>(new ThriftMultiFileStore(storeq, category,
-                                                      multi_category));
+      return shared_ptr<Store>(new ThriftMultiFileStore(storeq, category,
+                                                        multi_category));
+  #ifdef USE_SCRIBE_CASSANDRA
+  } else if (0 == type.compare("cassandra")) {
+      return shared_ptr<Store>(new CassandraStore(storeq, category,
+                                                        multi_category));
+  #endif
   } else {
     return shared_ptr<Store>();
   }
@@ -1367,6 +1380,7 @@ void BufferStore::configure(pStoreConf configuration, pStoreConf parent) {
       string msg("Bad config - buffer primary store cannot be multistore");
       setStatus(msg);
     } else {
+        cout << "type: " << type << endl;
       primaryStore = createStore(storeQueue, type, categoryHandled, false,
                                   multiCategory);
       primaryStore->configure(primary_store_conf, storeConf);
@@ -1390,7 +1404,6 @@ bool BufferStore::isOpen() {
 }
 
 bool BufferStore::open() {
-
   // try to open the primary store, and set the state accordingly
   if (primaryStore->open()) {
     // in case there are files left over from a previous instance
@@ -2003,7 +2016,7 @@ void NetworkStore::flush() {
 BucketStore::BucketStore(StoreQueue* storeq,
                         const string& category,
                         bool multi_category)
-  : Store(storeq, category, "bucket", multi_category),
+  : Store(storeq, category, "bucketfallback", multi_category),
     bucketType(context_log),
     delimiter(DEFAULT_BUCKETSTORE_DELIMITER),
     removeKey(false),
@@ -2289,7 +2302,7 @@ bool BucketStore::open() {
     LOG_OPER("[%s] Can't open bucket store with <%d> of <%lu> buckets", categoryHandled.c_str(), (int)buckets.size(), numBuckets);
     return false;
   }
-
+  cout << "BucketStore::open()" << endl;
   for (std::vector<shared_ptr<Store> >::iterator iter = buckets.begin();
        iter != buckets.end();
        ++iter) {

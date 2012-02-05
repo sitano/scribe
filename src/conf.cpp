@@ -97,6 +97,22 @@ bool StoreConf::getUnsignedLongLong(const string& llName,
   }
 }
 
+bool StoreConf::getBool(const string& boolName,
+                                    bool& _return) const {
+  string str;
+  if (getString(boolName, str)) {
+    if (str.compare("yes") || str.compare("1")) {
+      _return = true;
+      return true;
+    }
+    _return = false;
+    return true;
+  } else {
+    _return = false;
+    return false;
+  }
+}
+
 bool StoreConf::getString(const string& stringName,
                           string& _return) const {
   // allow parameter inheritance, i.e. if a named value is not found in the
