@@ -98,7 +98,6 @@ Store::createStore(StoreQueue* storeq, const string& type,
     return shared_ptr<Store>(new BucketStore(storeq, category,
                                             multi_category));
   } else if (0 == type.compare("bucketfallback")) {
-      LOG_OPER('bucket fallback create')
     return shared_ptr<Store>(new BucketFallbackStore(storeq, category,
                                             multi_category));
   } else if (0 == type.compare("thriftfile")) {
@@ -1380,7 +1379,6 @@ void BufferStore::configure(pStoreConf configuration, pStoreConf parent) {
       string msg("Bad config - buffer primary store cannot be multistore");
       setStatus(msg);
     } else {
-        cout << "type: " << type << endl;
       primaryStore = createStore(storeQueue, type, categoryHandled, false,
                                   multiCategory);
       primaryStore->configure(primary_store_conf, storeConf);

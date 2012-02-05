@@ -37,6 +37,7 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
     Store::configure(configuration, parent);
     // Error checking is done on open()
     if (!configuration->getString("remote_host", remoteHost))  {
+        throw runtime_error("Bad Config - remote_host not set");
         LOG_OPER("[%s] Bad Config - remote_host not set", categoryHandled.c_str());
     }
 
@@ -138,32 +139,27 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
            iter != messages->end();
            ++iter) {
 
-        // identify if message is gzipped
         string message;
-        message = (*iter)->message;
-//        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-//        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-//                (*iter)->message.at(1),
-//                (unsigned int)(*iter)->message.at(2),
-//                (unsigned int)(*iter)->message.at(3));
-//        if ((unsigned int) (*iter)->message[0] == 0x1f
-//                && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
-//            cout << message << endl;
-//            ostringstream gzMessage;
-//            ostringstream rawMessage;
-//            gzMessage << (*iter)->message;
-//            filtering_streambuf<input> gzFilter;
-//            gzFilter.push(gzip_decompressor());
-//            gzFilter.push(gzMessage);
-//
-//            boost::iostreams::copy(gzFilter, rawMessage);
-//
-//            message = rawMessage.str();
-//            cout << "ungzipped: " << message << endl;
-//        }
-//        else {
-//            message = (*iter)->message;
-//        }
+        stringstream gzMessage;
+        stringstream rawMessage;
+        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
+        printf("%x - %x - %x - %x", (*iter)->message.at(0),
+                (*iter)->message.at(1),
+                (unsigned int)(*iter)->message.at(2),
+                (unsigned int)(*iter)->message.at(3));
+        if ((unsigned int) (*iter)->message[0] == 0x1f && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
+            cout << message << endl;
+            gzMessage << (*iter)->message;
+            boost::iostreams::filtering_streambuf<boost::iostreams::input> gzFilter;
+            gzFilter.push(gzip_decompressor());
+            gzFilter.push(gzMessage);
+            boost::iostreams::copy(gzFilter, rawMessage);
+            message = rawMessage.str();
+            cout << "ungzipped: " << rawMessage.str() << endl;
+        }
+        else {
+            message = (*iter)->message;
+        }
 
         string rowKey;
         string scName;

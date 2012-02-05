@@ -24,10 +24,9 @@
 #include "libcassandra/cassandra.h"
 #include "libcassandra/keyspace.h"
 #include <boost/foreach.hpp>
-#include <boost/algorithm/string.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 
 #define DEFAULT_CASSANDRA_PORT 9160
 
