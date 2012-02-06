@@ -142,11 +142,11 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         string message;
         stringstream gzMessage;
         stringstream rawMessage;
-        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-                (*iter)->message.at(1),
-                (unsigned int)(*iter)->message.at(2),
-                (unsigned int)(*iter)->message.at(3));
+//        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
+//        printf("%x - %x - %x - %x", (*iter)->message.at(0),
+//                (*iter)->message.at(1),
+//                (unsigned int)(*iter)->message.at(2),
+//                (unsigned int)(*iter)->message.at(3));
         if ((unsigned int) (*iter)->message[0] == 0x1f && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
             cout << message << endl;
             gzMessage << (*iter)->message;
@@ -155,7 +155,7 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
             message = rawMessage.str();
-            cout << "ungzipped: " << rawMessage.str() << endl;
+//            cout << "ungzipped: " << rawMessage.str() << endl;
         }
         else {
             message = (*iter)->message;
