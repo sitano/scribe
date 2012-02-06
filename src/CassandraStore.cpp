@@ -193,6 +193,9 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         LOG_OPER("[%s] [Cassandra] nothing to write", categoryHandled.c_str());
     }
 
+    delete[] scit;
+    delete[] cit;
+
     return success;
 }
 
