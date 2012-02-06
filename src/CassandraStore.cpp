@@ -37,7 +37,6 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
     Store::configure(configuration, parent);
     // Error checking is done on open()
     if (!configuration->getString("remote_host", remoteHost))  {
-        throw runtime_error("Bad Config - remote_host not set");
         LOG_OPER("[%s] Bad Config - remote_host not set", categoryHandled.c_str());
     }
 
@@ -135,6 +134,7 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
     vector<Cassandra::ColumnInsertTuple> *cit = new std::vector<
             Cassandra::ColumnInsertTuple>();
 
+    unsigned int rows = 0;
     for (logentry_vector_t::iterator iter = messages->begin();
            iter != messages->end();
            ++iter) {
@@ -142,11 +142,11 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         string message;
         stringstream gzMessage;
         stringstream rawMessage;
-        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-                (*iter)->message.at(1),
-                (unsigned int)(*iter)->message.at(2),
-                (unsigned int)(*iter)->message.at(3));
+//        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
+//        printf("%x - %x - %x - %x", (*iter)->message.at(0),
+//                (*iter)->message.at(1),
+//                (unsigned int)(*iter)->message.at(2),
+//                (unsigned int)(*iter)->message.at(3));
         if ((unsigned int) (*iter)->message[0] == 0x1f && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
             cout << message << endl;
             gzMessage << (*iter)->message;
@@ -155,7 +155,7 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
             message = rawMessage.str();
-            cout << "ungzipped: " << rawMessage.str() << endl;
+//            cout << "ungzipped: " << rawMessage.str() << endl;
         }
         else {
             message = (*iter)->message;
@@ -166,6 +166,9 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         if (!parseJsonMessage(message, rowKey, scName, scit, cit)) {
             LOG_OPER("could not create insert touple for <%s>", message.c_str());
         }
+        else {
+        	rows++;
+        }
     }
 
     if (scit->size() > 0 || cit->size() > 0) {
@@ -175,9 +178,8 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
             unsigned long start = scribe::clock::nowInMsec();
             client->batchInsert(*cit, *scit, org::apache::cassandra::ConsistencyLevel::ONE);
             unsigned long runtime = scribe::clock::nowInMsec() - start;
-            LOG_OPER("[%s] [Cassandra] [%s] wrote %lu super columns and %lu columns in <%lu>",
-                    categoryHandled.c_str(), client->getHost().c_str(), scit->size(),
-                    cit->size(), runtime);
+            LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> rows in <%lu>",
+                    categoryHandled.c_str(), client->getHost().c_str(), rows, runtime);
         } catch (org::apache::cassandra::InvalidRequestException &ire) {
             cout << ire.why << endl;
             success = false;
@@ -190,6 +192,9 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
     } else {
         LOG_OPER("[%s] [Cassandra] nothing to write", categoryHandled.c_str());
     }
+
+    delete scit;
+    delete cit;
 
     return success;
 }
