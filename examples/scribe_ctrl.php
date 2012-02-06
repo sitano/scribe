@@ -2,9 +2,12 @@
 if ($argc < 4) {
 	echo $argv[0] . " host port command [command ...]\n" .
 	"commands:\n" .
-	"status\n" .
-	"version\n" .
 	"name\n" .
+	"version\n" .
+	"status\n" .
+	"alivesince\n" .
+	"reinitialize\n" .
+	"shutdown\n" .
 	"counters\n";
 	die();
 }
