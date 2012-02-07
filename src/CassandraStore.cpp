@@ -23,7 +23,7 @@ using namespace libcassandra;
 
 CassandraStore::CassandraStore(StoreQueue* storeq, const string& category,
         bool multi_category) :
-    Store(storeq, category, "cassandra", multi_category), gzip(false),
+    Store(storeq, category, "cassandra", multi_category),
             categoryAsCfName(false), keyspace(""), columnFamily(""),
             opened(false) {
     // we can't open the connection until we get configured
@@ -36,7 +36,7 @@ CassandraStore::~CassandraStore() {
 void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
     Store::configure(configuration, parent);
     // Error checking is done on open()
-    if (!configuration->getString("remote_host", remoteHost))  {
+    if (!configuration->getString("remote_host", remoteHost)) {
         LOG_OPER("[%s] Bad Config - remote_host not set", categoryHandled.c_str());
     }
 
@@ -58,6 +58,29 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
             && categoryAsCfName) {
         LOG_OPER("[%s] Bad Config - category_is_cf_name = 'yes' and column_family set", categoryHandled.c_str());
     }
+
+    string consistencyLevel_;
+    if (configuration->getString('consistency_level', consistencyLevel_)) {
+        if (0 == consistencyLevel_.compare("one")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::ONE;
+        } else if (0 == consistencyLevel_.compare("quorum")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::QUORUM;
+        } else if (0 == consistencyLevel_.compare("local_quorum")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::LOCAL_QUORUM;
+        } else if (0 == consistencyLevel_.compare("each_quorum")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::EACH_QUORUM;
+        } else if (0 == consistencyLevel_.compare("all")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::ALL;
+        } else if (0 == consistencyLevel_.compare("any")) {
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::ANY;
+        } else {
+            LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_);
+            consistencyLevel = org::apache::cassandra::ConsistencyLevel::QUORUM;
+        }
+    } else {
+        LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_);
+        consistencyLevel = org::apache::cassandra::ConsistencyLevel::QUORUM;
+    }
 }
 
 void CassandraStore::periodicCheck() {
@@ -73,12 +96,10 @@ bool CassandraStore::open() {
         CassandraFactory factory(remoteHost, remotePort);
         tr1::shared_ptr<Cassandra> client_(factory.create());
         client = client_;
-    }
-    catch (apache::thrift::TException& e) {
+    } catch (apache::thrift::TException& e) {
         cout << e.what() << endl;
         opened = false;
-    }
-    catch (std::exception e) {
+    } catch (std::exception e) {
         cout << e.what() << endl;
         opened = false;
     }
@@ -110,7 +131,6 @@ shared_ptr<Store> CassandraStore::copy(const std::string &category) {
     store->timeout = timeout;
     store->remoteHost = remoteHost;
     store->remotePort = remotePort;
-    store->gzip = gzip;
     store->categoryAsCfName = categoryAsCfName;
     store->keyspace = keyspace;
     store->columnFamily = columnFamily;
@@ -118,7 +138,8 @@ shared_ptr<Store> CassandraStore::copy(const std::string &category) {
     return copied;
 }
 
-bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) {
+bool CassandraStore::handleMessages(
+        boost::shared_ptr<logentry_vector_t> messages) {
     bool success = true;
     if (!isOpen()) {
         success = open();
@@ -133,29 +154,29 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
             Cassandra::ColumnInsertTuple>();
 
     unsigned int rows = 0;
-    for (logentry_vector_t::iterator iter = messages->begin();
-           iter != messages->end();
-           ++iter) {
+    for (logentry_vector_t::iterator iter = messages->begin(); iter
+            != messages->end(); ++iter) {
 
         string message;
         stringstream gzMessage;
         stringstream rawMessage;
-//        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-//        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-//                (*iter)->message.at(1),
-//                (unsigned int)(*iter)->message.at(2),
-//                (unsigned int)(*iter)->message.at(3));
-        if ((unsigned int) (*iter)->message[0] == 0x1f && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
+        //        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
+        //        printf("%x - %x - %x - %x", (*iter)->message.at(0),
+        //                (*iter)->message.at(1),
+        //                (unsigned int)(*iter)->message.at(2),
+        //                (unsigned int)(*iter)->message.at(3));
+        if ((unsigned int) (*iter)->message[0] == 0x1f
+                && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
             cout << message << endl;
             gzMessage << (*iter)->message;
-            boost::iostreams::filtering_streambuf<boost::iostreams::input> gzFilter;
+            boost::iostreams::filtering_streambuf<boost::iostreams::input>
+                    gzFilter;
             gzFilter.push(gzip_decompressor());
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
             message = rawMessage.str();
-//            cout << "ungzipped: " << rawMessage.str() << endl;
-        }
-        else {
+            //            cout << "ungzipped: " << rawMessage.str() << endl;
+        } else {
             message = (*iter)->message;
         }
 
@@ -163,9 +184,8 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         string scName;
         if (!parseJsonMessage(message, rowKey, scName, scit, cit)) {
             LOG_OPER("could not create insert tuple for <%s>", message.c_str());
-        }
-        else {
-        	rows++;
+        } else {
+            rows++;
         }
     }
 
@@ -174,15 +194,14 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
             client->setKeyspace(keyspace);
             // TODO: make ConsistencyLevel configurable
             unsigned long start = scribe::clock::nowInMsec();
-            client->batchInsert(*cit, *scit, org::apache::cassandra::ConsistencyLevel::ONE);
+            client->batchInsert(*cit, *scit, consistencyLevel);
             unsigned long runtime = scribe::clock::nowInMsec() - start;
             LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> rows in <%lu>",
                     categoryHandled.c_str(), client->getHost().c_str(), rows, runtime);
         } catch (org::apache::cassandra::InvalidRequestException &ire) {
             cout << ire.why << endl;
             success = false;
-        }
-        catch (std::exception& e) {
+        } catch (std::exception& e) {
             close();
             cout << e.what() << endl;
             success = false;
@@ -197,22 +216,24 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
     return success;
 }
 
-bool CassandraStore::getColumnStringValue(json_t* root, string key, string& _return) {
+bool CassandraStore::getColumnStringValue(json_t* root, string key,
+        string& _return) {
     json_t* jObj = (key.empty()) ? root : json_object_get(root, key.c_str());
     if (jObj) {
         int type = json_typeof(jObj);
         stringstream stream;
         switch (type) {
-            case JSON_STRING:
-                _return = json_string_value(jObj);
-                return true;
-            case JSON_INTEGER:
-                stream << (uint64_t)json_integer_value(jObj);
-                _return = stream.str();
-                return true;
-            default:
-                LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
-                return false;
+        case JSON_STRING:
+            _return = json_string_value(jObj);
+            return true;
+        case JSON_INTEGER:
+            stream << (uint64_t) json_integer_value(jObj);
+            _return = stream.str();
+            return true;
+        default:
+            LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str())
+            ;
+            return false;
         }
         return false;
     }
@@ -254,13 +275,14 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
                     LOG_DBG("could not get value for %s", key);
                 }
 
-                string columnFamily_ = (categoryAsCfName) ? categoryHandled.c_str() : columnFamily;
+                string columnFamily_ =
+                        (categoryAsCfName) ? categoryHandled.c_str()
+                                : columnFamily;
                 if (scName.empty()) {
                     Cassandra::ColumnInsertTuple t(columnFamily_,
                             rowKey.c_str(), key, columnValue);
                     cit->push_back(t);
-                }
-                else {
+                } else {
                     Cassandra::SuperColumnInsertTuple t(columnFamily_,
                             rowKey.c_str(), scName.c_str(), key, columnValue);
                     scit->push_back(t);
