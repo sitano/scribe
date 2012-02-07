@@ -57,7 +57,6 @@ protected:
     long int timeout;
     long int remotePort;
     std::string remoteHost;
-    bool gzip;
     bool categoryAsCfName;
     std::string keyspace;
     std::string columnFamily;

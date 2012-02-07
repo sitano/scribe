@@ -58,8 +58,6 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
             && categoryAsCfName) {
         LOG_OPER("[%s] Bad Config - category_is_cf_name = 'yes' and column_family set", categoryHandled.c_str());
     }
-
-    configuration->getBool("gzip", gzip);
 }
 
 void CassandraStore::periodicCheck() {
@@ -164,7 +162,7 @@ bool CassandraStore::handleMessages(boost::shared_ptr<logentry_vector_t> message
         string rowKey;
         string scName;
         if (!parseJsonMessage(message, rowKey, scName, scit, cit)) {
-            LOG_OPER("could not create insert touple for <%s>", message.c_str());
+            LOG_OPER("could not create insert tuple for <%s>", message.c_str());
         }
         else {
         	rows++;
