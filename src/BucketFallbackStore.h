@@ -9,6 +9,7 @@ public:
     BucketFallbackStore(StoreQueue* storeq, const std::string& category,
             bool multi_category);
     ~BucketFallbackStore();
+    void configure(pStoreConf configuration, pStoreConf parent);
     boost::shared_ptr<Store> copy(const std::string &category);
     bool handleMessages(boost::shared_ptr<logentry_vector_t> messages);
     //bool open();

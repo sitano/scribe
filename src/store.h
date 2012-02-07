@@ -450,9 +450,10 @@ class BucketStore : public Store {
   char delimiter;
   bool removeKey;
   bool opened;
-  unsigned long bucketRange;  // used to compute key_range bucketizing
+  unsigned long bucketRange; // used to compute key_range bucketizing
   unsigned long numBuckets;
   std::vector<boost::shared_ptr<Store> > buckets;
+  std::vector<boost::shared_ptr<Store> > deadBuckets;
 
   unsigned long bucketize(const std::string& message);
   std::string getMessageWithoutKey(const std::string& message);

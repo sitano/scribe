@@ -3,6 +3,8 @@
  * This continues until all Buckets are marked as unavailable
  */
 
+
+
 #include "common.h"
 #include "BucketFallbackStore.h"
 
@@ -13,10 +15,15 @@ using namespace scribe::thrift;
 BucketFallbackStore::BucketFallbackStore(StoreQueue* storeq,
         const string& category, bool multi_category) :
     BucketStore(storeq, category, multi_category) {
-    bucketType = random;
 }
 
 BucketFallbackStore::~BucketFallbackStore() {
+}
+
+
+void BucketFallbackStore::configure(pStoreConf configuration, pStoreConf parent) {
+    // TODO: set min_buckets_available - minimum X buckets must be available until this store is considered disconnected
+    // this should prevent overloading the remaining targets if too many targets are not available.
 }
 
 /**
@@ -59,10 +66,19 @@ bool BucketFallbackStore::handleMessages(boost::shared_ptr<logentry_vector_t> me
         return false;
     }
 
+    unsigned bucket;
     // batch messages by bucket
     for (logentry_vector_t::iterator iter = messages->begin(); iter
             != messages->end(); ++iter) {
-        unsigned bucket = bucketize((*iter)->message);
+        cout << bucketType << endl;
+        if (bucketType == random_one) {
+            if (iter == messages->begin()) {
+                bucket = bucketize((*iter)->message);
+            }
+        }
+        else {
+            bucket = bucketize((*iter)->message);
+        }
 
         if (!bucketed_messages[bucket]) {
             bucketed_messages[bucket] = shared_ptr<logentry_vector_t> (
@@ -97,7 +113,7 @@ bool BucketFallbackStore::handleMessages(boost::shared_ptr<logentry_vector_t> me
                 failed_messages->insert(failed_messages->end(),
                         bucketed_messages[i]->begin(),
                         bucketed_messages[i]->end());
-                // Bucket seems to be dead - temporarely remove it
+                // Bucket seems to be dead - temporarily remove it
                 LOG_OPER('Bucket number %lu of type %s down', i, buckets[i]->getType().c_str());
 
                 deadBuckets.push_back(buckets[i]);
@@ -108,7 +124,7 @@ bool BucketFallbackStore::handleMessages(boost::shared_ptr<logentry_vector_t> me
                 setStatus(msg.str());
                 if (numBuckets <= 0) {
                     success = false;
-                    string msg("No Buckets Available");
+                    string msg("No Buckets available");
                     setStatus(msg);
                 }
                 else {
