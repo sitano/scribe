@@ -59,7 +59,7 @@ protected:
     bool categoryAsCfName;
     std::string keyspace;
     std::string columnFamily;
-    org::apache::cassandra::ConsistencyLevel consistencyLevel;
+    org::apache::cassandra::ConsistencyLevel::type consistencyLevel;
     std::tr1::shared_ptr<libcassandra::Cassandra> client;
 
     // state
