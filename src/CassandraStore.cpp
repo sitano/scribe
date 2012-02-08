@@ -60,7 +60,7 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
     }
 
     string consistencyLevel_;
-    if (configuration->getString('consistency_level', consistencyLevel_)) {
+    if (configuration->getString("consistency_level", consistencyLevel_)) {
         if (0 == consistencyLevel_.compare("one")) {
             consistencyLevel = org::apache::cassandra::ConsistencyLevel::ONE;
         } else if (0 == consistencyLevel_.compare("quorum")) {
@@ -74,11 +74,11 @@ void CassandraStore::configure(pStoreConf configuration, pStoreConf parent) {
         } else if (0 == consistencyLevel_.compare("any")) {
             consistencyLevel = org::apache::cassandra::ConsistencyLevel::ANY;
         } else {
-            LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_);
+            LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_.c_str());
             consistencyLevel = org::apache::cassandra::ConsistencyLevel::QUORUM;
         }
     } else {
-        LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_);
+        LOG_OPER("[%s] [cassandra] unknown Consistency Level <%s> assuming QUORUM", categoryHandled.c_str(), consistencyLevel_.c_str());
         consistencyLevel = org::apache::cassandra::ConsistencyLevel::QUORUM;
     }
 }
