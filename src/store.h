@@ -455,7 +455,9 @@ class BucketStore : public Store {
   std::vector<boost::shared_ptr<Store> > buckets;
   std::vector<boost::shared_ptr<Store> > deadBuckets;
   bool ignoreDeadBuckets;
-  unsigned int minAliveBuckets;
+  unsigned long minAliveBuckets;
+  unsigned long numRandomBuckets;
+  bool singleRandomBucket; // send all Messages to a single random Bucket
 
   unsigned long bucketize(const std::string& message);
   std::string getMessageWithoutKey(const std::string& message);

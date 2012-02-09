@@ -97,11 +97,10 @@ bool StoreConf::getUnsignedLongLong(const string& llName,
   }
 }
 
-bool StoreConf::getBool(const string& boolName,
-                                    bool& _return) const {
+bool StoreConf::getBool(const string& boolName, bool& _return) const {
   string str;
   if (getString(boolName, str)) {
-    if (str.compare("yes") || str.compare("1")) {
+    if (str.compare("yes") == 0 || str.compare("1") == 0) {
       _return = true;
       return true;
     }
