@@ -2010,7 +2010,7 @@ void NetworkStore::flush() {
 BucketStore::BucketStore(StoreQueue* storeq,
                         const string& category,
                         bool multi_category)
-  : Store(storeq, category, "bucketfallback", multi_category),
+  : Store(storeq, category, "bucket", multi_category),
     bucketType(context_log),
     delimiter(DEFAULT_BUCKETSTORE_DELIMITER),
     removeKey(false),
@@ -2502,7 +2502,7 @@ bool BucketStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) 
         // remove 2 from numBuckets since the current one is dead aswell
         if (ignoreDeadBuckets && (numBuckets - 1) >= minAliveBuckets) {
           // Bucket seems to be dead - temporarily remove it
-          LOG_OPER('Bucket number %lu of type %s down', i, buckets[i]->getType().c_str());
+          LOG_OPER("Bucket of type %s down", buckets[i]->getType().c_str());
 
           deadBuckets.push_back(buckets[i]);
           buckets.erase(buckets.begin() + i);
