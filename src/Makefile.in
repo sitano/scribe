@@ -109,7 +109,7 @@ libscribe_so_LINK = $(CXXLD) $(libscribe_so_CXXFLAGS) $(CXXFLAGS) \
 	$(libscribe_so_LDFLAGS) $(LDFLAGS) -o $@
 am__scribed_SOURCES_DIST = store.cpp store_queue.cpp conf.cpp file.cpp \
 	conn_pool.cpp scribe_server.cpp network_dynamic_config.cpp \
-	dynamic_bucket_updater.cpp BucketFallbackStore.cpp \
+	dynamic_bucket_updater.cpp \
 	gen-cpp/ServiceManager_types.cpp gen-cpp/ServiceManager.cpp \
 	env_default.cpp env_facebook.cpp HdfsFile.cpp \
 	CassandraStore.cpp
@@ -122,7 +122,7 @@ am__scribed_SOURCES_DIST = store.cpp store_queue.cpp conf.cpp file.cpp \
 am_scribed_OBJECTS = store.$(OBJEXT) store_queue.$(OBJEXT) \
 	conf.$(OBJEXT) file.$(OBJEXT) conn_pool.$(OBJEXT) \
 	scribe_server.$(OBJEXT) network_dynamic_config.$(OBJEXT) \
-	dynamic_bucket_updater.$(OBJEXT) BucketFallbackStore.$(OBJEXT) \
+	dynamic_bucket_updater.$(OBJEXT) \
 	$(am__objects_1) $(am__objects_2) $(am__objects_3) \
 	$(am__objects_4)
 scribed_OBJECTS = $(am_scribed_OBJECTS)
@@ -338,7 +338,7 @@ AM_LDFLAGS = $(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) -lboos
 @SHARED_TRUE@libscribe_so_LDFLAGS = $(SHARED_LDFLAGS)
 scribed_SOURCES = store.cpp store_queue.cpp conf.cpp file.cpp \
 	conn_pool.cpp scribe_server.cpp network_dynamic_config.cpp \
-	dynamic_bucket_updater.cpp BucketFallbackStore.cpp \
+	dynamic_bucket_updater.cpp \
 	$(FB_SOURCES) $(ENV_SOURCES) $(am__append_3) $(am__append_4)
 scribed_LDADD = $(EXTERNAL_LIBS) $(INTERNAL_LIBS)
 @SHARED_TRUE@scribed_DEPENDENCIES = libscribe.so
@@ -505,7 +505,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/BucketFallbackStore.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/BucketStoreMapping.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CassandraStore.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/HdfsFile.Po@am__quote@
