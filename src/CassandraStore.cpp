@@ -134,6 +134,7 @@ shared_ptr<Store> CassandraStore::copy(const std::string &category) {
     store->categoryAsCfName = categoryAsCfName;
     store->keyspace = keyspace;
     store->columnFamily = columnFamily;
+    store->consistencyLevel = consistencyLevel;
 
     return copied;
 }
