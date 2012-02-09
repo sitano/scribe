@@ -107,10 +107,9 @@ bool StoreConf::getBool(const string& boolName,
     }
     _return = false;
     return true;
-  } else {
-    _return = false;
-    return false;
   }
+  _return = false;
+  return false;
 }
 
 bool StoreConf::getString(const string& stringName,

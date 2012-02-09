@@ -28,7 +28,6 @@
 #include "common.h"
 #include "scribe_server.h"
 #include "network_dynamic_config.h"
-#include "BucketFallbackStore.h"
 #ifdef USE_SCRIBE_CASSANDRA
 # include "CassandraStore.h"
 #endif
@@ -96,9 +95,6 @@ Store::createStore(StoreQueue* storeq, const string& type,
                                               multi_category));
   } else if (0 == type.compare("bucket")) {
     return shared_ptr<Store>(new BucketStore(storeq, category,
-                                            multi_category));
-  } else if (0 == type.compare("bucketfallback")) {
-    return shared_ptr<Store>(new BucketFallbackStore(storeq, category,
                                             multi_category));
   } else if (0 == type.compare("thriftfile")) {
     return shared_ptr<Store>(new ThriftFileStore(storeq, category,
@@ -2225,7 +2221,7 @@ void BucketStore::configure(pStoreConf configuration, pStoreConf parent) {
 
   configuration->getString("bucket_type", bucketizer_str);
 
-  // Figure out th bucket type from the bucketizer string
+  // Figure out the bucket type from the bucketizer string
   if (0 == bucketizer_str.compare("context_log")) {
     bucketType = context_log;
   } else if (0 == bucketizer_str.compare("random")) {
@@ -2285,6 +2281,15 @@ void BucketStore::configure(pStoreConf configuration, pStoreConf parent) {
     createBuckets(configuration);
   }
 
+//  // TODO: make marking of dead buckets configurable (continue_with_dead_buckets yes/no ?)
+//  configuration->getBool("ignore_dead_buckets", ignoreDeadBuckets);
+//  if (ignoreDeadBuckets) {
+//    if (!configuration->getInt("min_active_buckets", minAliveBuckets)) {
+//      minAliveBuckets = 0;
+//      LOG_OPER("[%s] WARN: min_active_buckets not set - assuming none", categoryHandled.c_str());
+//    }
+//  }
+
   return;
 
 handle_error:
@@ -2294,6 +2299,14 @@ handle_error:
   buckets.clear();
 }
 
+/*
+ *
+ * TODO: min_buckets_alive - at least X buckets need to be alive to consider the whole store active
+ *      - this can also be a percentage value like 50% or smth.
+ * TODO: random_max/num/count/range/whatever ? - choose X random buckets to send the messages to
+ *
+*/
+
 bool BucketStore::open() {
   // we have one extra bucket for messages we can't hash
   if (numBuckets <= 0 || buckets.size() != numBuckets + 1) {
@@ -2301,6 +2314,7 @@ bool BucketStore::open() {
     return false;
   }
 
+  // TODO: ignore dead targets if not all dead
   for (std::vector<shared_ptr<Store> >::iterator iter = buckets.begin();
        iter != buckets.end();
        ++iter) {
@@ -2364,6 +2378,42 @@ void BucketStore::periodicCheck() {
   for (uint32_t i = 0; i < sz; ++i) {
     uint32_t idx = storeIndex[i];
     buckets[idx]->periodicCheck();
+  }
+
+  // check if dead Targets are alive again
+  vector<unsigned int> bucketsToRemove;
+  if (!deadBuckets.empty()) {
+    LOG_OPER("we have %lu dead Buckets", deadBuckets.size());
+    // check if dead stores can be reached
+    unsigned int size = deadBuckets.size();
+    for (unsigned int i = 0; i < size; ++i) {
+      if (!deadBuckets[i]->open()) {
+        close();
+      } else {
+        numBuckets++;
+        buckets.push_back(deadBuckets[i]);
+        bucketsToRemove.push_back(i);
+        LOG_OPER("[%s] Bucket #%i alive", categoryHandled.c_str(), i);
+      }
+    }
+
+    if (!bucketsToRemove.empty()) {
+      // remove alive Buckets
+      size = bucketsToRemove.size();
+      for (unsigned int i = 0; i < size; ++i) {
+        deadBuckets.erase(deadBuckets.begin() + bucketsToRemove[i]);
+      }
+    }
+    // set Status
+    if (deadBuckets.empty()) {
+      setStatus("");
+    } else {
+      if (numBuckets > 0) {
+        stringstream msg;
+        msg << "Buckets not available: " << deadBuckets.size();
+        setStatus(msg.str());
+      }
+    }
   }
 }
 
@@ -2443,15 +2493,31 @@ bool BucketStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) 
       if (!buckets[i]->handleMessages(batch)) {
         // keep track of messages that were not handled
         failed_messages->insert(failed_messages->end(),
-                                bucketed_messages[i]->begin(),
-                                bucketed_messages[i]->end());
-        success = false;
+            bucketed_messages[i]->begin(), bucketed_messages[i]->end());
+        // Bucket seems to be dead - temporarily remove it
+        LOG_OPER('Bucket number %lu of type %s down', i, buckets[i]->getType().c_str());
+
+        deadBuckets.push_back(buckets[i]);
+        buckets.erase(buckets.begin() + i);
+        numBuckets--;
+        stringstream msg;
+        msg << "Buckets not available: " << deadBuckets.size();
+        setStatus(msg.str());
+        if (numBuckets <= 0) {
+          success = false;
+          string msg("No Buckets available");
+          setStatus(msg);
+        } else {
+          // TODO: test this - do all and the right messages get passed back if all targets are down ?
+          // retry failed messages with remaining Buckets
+          success = handleMessages(failed_messages);
+        }
       }
     }
   }
 
   if (!success) {
-    // return failed logentrys in messages
+    // return failed log entries in messages
     messages->swap(*failed_messages);
   }
 

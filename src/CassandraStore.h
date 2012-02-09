@@ -32,7 +32,6 @@
 
 /*
  * This store sends messages to a Cassandra Server.
- * It can handle multiple Servers
  */
 class CassandraStore: public Store {
 
