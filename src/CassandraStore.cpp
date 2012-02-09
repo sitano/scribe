@@ -134,6 +134,7 @@ shared_ptr<Store> CassandraStore::copy(const std::string &category) {
     store->categoryAsCfName = categoryAsCfName;
     store->keyspace = keyspace;
     store->columnFamily = columnFamily;
+    store->consistencyLevel = consistencyLevel;
 
     return copied;
 }
@@ -192,7 +193,6 @@ bool CassandraStore::handleMessages(
     if (scit->size() > 0 || cit->size() > 0) {
         try {
             client->setKeyspace(keyspace);
-            // TODO: make ConsistencyLevel configurable
             unsigned long start = scribe::clock::nowInMsec();
             client->batchInsert(*cit, *scit, consistencyLevel);
             unsigned long runtime = scribe::clock::nowInMsec() - start;

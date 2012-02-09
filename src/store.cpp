@@ -28,7 +28,6 @@
 #include "common.h"
 #include "scribe_server.h"
 #include "network_dynamic_config.h"
-#include "BucketFallbackStore.h"
 #ifdef USE_SCRIBE_CASSANDRA
 # include "CassandraStore.h"
 #endif
@@ -96,9 +95,6 @@ Store::createStore(StoreQueue* storeq, const string& type,
                                               multi_category));
   } else if (0 == type.compare("bucket")) {
     return shared_ptr<Store>(new BucketStore(storeq, category,
-                                            multi_category));
-  } else if (0 == type.compare("bucketfallback")) {
-    return shared_ptr<Store>(new BucketFallbackStore(storeq, category,
                                             multi_category));
   } else if (0 == type.compare("thriftfile")) {
     return shared_ptr<Store>(new ThriftFileStore(storeq, category,
@@ -2225,7 +2221,7 @@ void BucketStore::configure(pStoreConf configuration, pStoreConf parent) {
 
   configuration->getString("bucket_type", bucketizer_str);
 
-  // Figure out th bucket type from the bucketizer string
+  // Figure out the bucket type from the bucketizer string
   if (0 == bucketizer_str.compare("context_log")) {
     bucketType = context_log;
   } else if (0 == bucketizer_str.compare("random")) {
@@ -2285,6 +2281,15 @@ void BucketStore::configure(pStoreConf configuration, pStoreConf parent) {
     createBuckets(configuration);
   }
 
+//  // TODO: make marking of dead buckets configurable (continue_with_dead_buckets yes/no ?)
+//  configuration->getBool("ignore_dead_buckets", ignoreDeadBuckets);
+//  if (ignoreDeadBuckets) {
+//    if (!configuration->getInt("min_active_buckets", minAliveBuckets)) {
+//      minAliveBuckets = 0;
+//      LOG_OPER("[%s] WARN: min_active_buckets not set - assuming none", categoryHandled.c_str());
+//    }
+//  }
+
   return;
 
 handle_error:
@@ -2295,7 +2300,7 @@ handle_error:
 }
 
 /*
- * TODO: make marking of dead buckets configurable (continue_with_dead_buckets yes/no ?)
+ *
  * TODO: min_buckets_alive - at least X buckets need to be alive to consider the whole store active
  *      - this can also be a percentage value like 50% or smth.
  * TODO: random_max/num/count/range/whatever ? - choose X random buckets to send the messages to
@@ -2378,7 +2383,7 @@ void BucketStore::periodicCheck() {
   // check if dead Targets are alive again
   vector<unsigned int> bucketsToRemove;
   if (!deadBuckets.empty()) {
-    LOG_OPER("we have %i dead Buckets", deadBuckets.size());
+    LOG_OPER("we have %lu dead Buckets", deadBuckets.size());
     // check if dead stores can be reached
     unsigned int size = deadBuckets.size();
     for (unsigned int i = 0; i < size; ++i) {
