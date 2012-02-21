@@ -71,6 +71,8 @@ private:
             std::vector<libcassandra::Cassandra::ColumnInsertTuple>* cit);
     bool getColumnStringValue(json_t* root, std::string key,
             std::string& _return);
+    bool getColumnIntValue(json_t* root, std::string key,
+            int64_t& _return);
     bool parseJsonMessage(std::string message, std::string& rowKey,
             std::string& scName,
             std::vector<libcassandra::Cassandra::SuperColumnInsertTuple>* scit,
