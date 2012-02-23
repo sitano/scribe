@@ -12,14 +12,14 @@
 //
 // See accompanying file LICENSE
 
+#ifdef USE_SCRIBE_CASSANDRA
+
 #include "CassandraStore.h"
 
 using namespace std;
 using namespace boost;
 using namespace boost::iostreams;
 using namespace libcassandra;
-
-#ifdef USE_SCRIBE_CASSANDRA
 
 CassandraStore::CassandraStore(StoreQueue* storeq, const string& category,
         bool multi_category) :
