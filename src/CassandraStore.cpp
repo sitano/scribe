@@ -149,25 +149,13 @@ bool CassandraStore::handleMessages(
         }
     }
 
-    vector<Cassandra::SuperColumnInsertTuple> *scit = new std::vector<
-    Cassandra::SuperColumnInsertTuple>();
-    vector<Cassandra::ColumnInsertTuple> *cit = new std::vector<
-    Cassandra::ColumnInsertTuple>();
-
-    client->setKeyspace(keyspace);
-
-    unsigned int rows = 0;
-    for (logentry_vector_t::iterator iter = messages->begin(); iter
-            != messages->end(); ++iter) {
-
+    vector<CassandraDataStruct> data;
+    for (logentry_vector_t::iterator iter = messages->begin(); iter != messages->end(); ++iter) {
         string message;
         stringstream gzMessage;
         stringstream rawMessage;
-        //        cout << "size: " << sizeof(message) << "length: " << message.length() << endl;
-        //        printf("%x - %x - %x - %x", (*iter)->message.at(0),
-        //                (*iter)->message.at(1),
-        //                (unsigned int)(*iter)->message.at(2),
-        //                (unsigned int)(*iter)->message.at(3));
+
+        // detect if message is gzipped
         if ((unsigned int) (*iter)->message[0] == 0x1f
                 && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
             cout << message << endl;
@@ -178,27 +166,80 @@ bool CassandraStore::handleMessages(
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
             message = rawMessage.str();
-            //            cout << "ungzipped: " << rawMessage.str() << endl;
         } else {
             message = (*iter)->message;
         }
 
-        string rowKey;
-        string scName;
-        if (!parseJsonMessage(message, rowKey, scName, scit, cit)) {
+        CassandraDataStruct* cassandraData = parseJsonMessage(message);
+        if (cassandraData == NULL) {
             LOG_OPER("could not create insert tuple for <%s>", message.c_str());
         } else {
-            rows++;
+            data.push_back(*cassandraData);
+        }
+        delete cassandraData;
+    }
+
+    unsigned int counterRows = 0;
+    vector<Cassandra::ColumnInsertTuple> cit;
+    vector<Cassandra::SuperColumnInsertTuple> scit;
+    if (data.size() > 0) {
+        client->setKeyspace(keyspace);
+
+        for (vector<CassandraDataStruct>::iterator iter = data.begin(); iter != data.end(); ++iter) {
+            if (iter->superColumnFamily.empty()) {
+                if (iter->counter) {
+                    try {
+                        client->incrementCounter(iter->rowKey, iter->columnFamily,
+                                iter->columnName, (int64_t) atoi(iter->value.c_str()),
+                                consistencyLevel);
+                        counterRows++;
+                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
+                        cout << ire.why << endl;
+                        success = false;
+                    } catch (std::exception& e) {
+                        cout << e.what() << endl;
+                        success = false;
+                    }
+                } else {
+                    cit.push_back(Cassandra::ColumnInsertTuple(iter->columnFamily,
+                                    iter->rowKey, iter->columnName, iter->value));
+                }
+            } else {
+                if (iter->counter) {
+                    try {
+                        client->incrementCounter(iter->rowKey, iter->columnFamily,
+                                iter->superColumnFamily, iter->columnName,
+                                (int64_t) atoi(iter->value.c_str()), consistencyLevel);
+                        counterRows++;
+                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
+                        cout << ire.why << endl;
+                        success = false;
+                    } catch (std::exception& e) {
+                        cout << e.what() << endl;
+                        success = false;
+                    }
+                } else {
+                    scit.push_back(
+                            Cassandra::SuperColumnInsertTuple(iter->columnFamily,
+                                    iter->rowKey, iter->superColumnFamily,
+                                    iter->columnName, iter->value));
+                }
+            }
         }
     }
 
-    if (scit->size() > 0 || cit->size() > 0) {
+    if (counterRows > 0) {
+        LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> counter rows",
+                categoryHandled.c_str(), client->getHost().c_str(), counterRows);
+    }
+
+    if (scit.size() > 0 || cit.size() > 0) {
         try {
             unsigned long start = scribe::clock::nowInMsec();
-            client->batchInsert(*cit, *scit, consistencyLevel);
+            client->batchInsert(cit, scit, consistencyLevel);
             unsigned long runtime = scribe::clock::nowInMsec() - start;
             LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> rows in <%lu>",
-                    categoryHandled.c_str(), client->getHost().c_str(), rows, runtime);
+                    categoryHandled.c_str(), client->getHost().c_str(), scit.size() + cit.size(), runtime);
         } catch (org::apache::cassandra::InvalidRequestException &ire) {
             cout << ire.why << endl;
             success = false;
@@ -206,14 +247,7 @@ bool CassandraStore::handleMessages(
             cout << e.what() << endl;
             success = false;
         }
-    } else if (rows > 0) {
-        LOG_OPER("[%s] [Cassandra] wrote <%i> counter Columns", categoryHandled.c_str(), rows);
-    } else {
-        LOG_OPER("[%s] [Cassandra] nothing to write", categoryHandled.c_str());
     }
-
-    delete scit;
-    delete cit;
 
     return success;
 }
@@ -247,41 +281,15 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
     return false;
 }
 
-bool CassandraStore::getColumnIntValue(json_t* root, string key,
-        int64_t& _return) {
-    json_t* jObj = (key.empty()) ? root : json_object_get(root, key.c_str());
-    if (jObj) {
-        int type = json_typeof(jObj);
-        stringstream stream;
-        switch (type) {
-            case JSON_STRING:
-                _return = (uint64_t)atoi(json_string_value(jObj));
-                return true;
-            case JSON_INTEGER:
-                _return = (uint64_t)json_integer_value(jObj);
-                return true;
-            case JSON_TRUE:
-                _return = 1;
-                return true;
-            case JSON_FALSE:
-                _return = 0;
-                return true;
-            default:
-                LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
-                return false;
-        }
-        return false;
-    }
-    return false;
-}
-
-bool CassandraStore::parseJsonMessage(string message, string& rowKey,
-        string& scName, vector<Cassandra::SuperColumnInsertTuple>* scit,
-        vector<Cassandra::ColumnInsertTuple>* cit) {
+CassandraStore::CassandraDataStruct* CassandraStore::parseJsonMessage(string message) {
     if (message.empty()) {
         LOG_DBG("empty Message");
-        return true;
+        return NULL;
     }
+
+    string rowKey;
+    string scName;
+    CassandraDataStruct *cassandraData = new CassandraDataStruct();
 
     json_error_t error;
     json_t* jsonRoot = json_loads(message.c_str(), 0, &error);
@@ -290,7 +298,7 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
         // get rowKey which is required
         if (!getColumnStringValue(jsonRoot, "rowKey", rowKey)) {
             LOG_OPER("[cassandra][ERROR] rowKey not set %s", message.c_str());
-            return false;
+            return NULL;
         }
         LOG_DBG("rowKey: %s", rowKey.c_str());
 
@@ -313,58 +321,33 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
             json_t* jValueObj;
             json_object_foreach(dataObj, key, jValueObj) {
                 string columnFamily_ = (categoryAsCfName) ? categoryHandled.c_str() : columnFamily;
-                if (counterColumn) {
-                    int64_t columnValue;
-                    if (!getColumnIntValue(jValueObj, "", columnValue)) {
-                        LOG_DBG("could not get value for %s", key);
-                    }
-                    try {
-                        if (scName.empty()) {
-                            client->incrementCounter(rowKey.c_str(), columnFamily_, key, columnValue, consistencyLevel);
-                        }
-                        else {
-                            client->incrementCounter(rowKey.c_str(), columnFamily_, scName.c_str(), key, columnValue, consistencyLevel);
-                        }
-                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
-                        cout << ire.why << endl;
-                        return false;
-                    } catch (std::exception& e) {
-                        cout << e.what() << endl;
-                        return false;
-                    }
-                }
-                else {
-                    string columnValue;
-                    if (!getColumnStringValue(jValueObj, "", columnValue)) {
-                        LOG_DBG("could not get value for %s", key);
-                    }
-                    if (scName.empty()) {
-                        Cassandra::ColumnInsertTuple t(columnFamily_,
-                                rowKey.c_str(), key, columnValue);
-                        cit->push_back(t);
-                    } else {
-                        Cassandra::SuperColumnInsertTuple t(columnFamily_,
-                                rowKey.c_str(), scName.c_str(), key, columnValue);
-                        scit->push_back(t);
-                    }
-                }
 
-                LOG_DBG("type %i", json_typeof(jValueObj));
+                string columnValue;
+                if (!getColumnStringValue(jValueObj, "", columnValue)) {
+                    LOG_DBG("could not get value for %s", key);
+                    return NULL;
+                }
+                cassandraData->columnFamily = columnFamily_;
+                cassandraData->superColumnFamily = scName;
+                cassandraData->rowKey = rowKey;
+                cassandraData->columnName = key;
+                cassandraData->value = columnValue;
+                cassandraData->counter = counterColumn;
+
                 LOG_DBG("key %s", key);
                 LOG_DBG("value %s", columnValue.c_str());
-
             }
         } else {
             LOG_OPER("[cassandra][ERROR] data not set - at least one value is required: %s", message.c_str());
-            return false;
+            return NULL;
         }
 
         json_decref(jsonRoot);
     } else {
         LOG_OPER("[cassandra][ERROR] Not a valid JSON String '%s'", message.c_str());
-        return false;
+        return NULL;
     }
-    return true;
+    return cassandraData;
 }
 
 void CassandraStore::flush() {

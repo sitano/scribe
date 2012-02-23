@@ -34,7 +34,6 @@
  * This store sends messages to a Cassandra Server.
  */
 class CassandraStore: public Store {
-
 public:
     CassandraStore(StoreQueue* storeq, const std::string& category,
             bool multi_category);
@@ -50,6 +49,15 @@ public:
     void periodicCheck();
 
 protected:
+    struct CassandraDataStruct {
+        std::string columnFamily;
+        std::string superColumnFamily;
+        std::string rowKey;
+        std::string columnName;
+        std::string value;
+        bool counter;
+    };
+
     static const long int DEFAULT_SOCKET_TIMEOUT_MS = 5000; // 5 sec timeout
 
     // configuration
@@ -69,14 +77,9 @@ private:
     bool createInsertTuple(std::string message,
             std::vector<libcassandra::Cassandra::SuperColumnInsertTuple>* scit,
             std::vector<libcassandra::Cassandra::ColumnInsertTuple>* cit);
-    bool getColumnStringValue(json_t* root, std::string key,
-            std::string& _return);
-    bool getColumnIntValue(json_t* root, std::string key,
-            int64_t& _return);
-    bool parseJsonMessage(std::string message, std::string& rowKey,
-            std::string& scName,
-            std::vector<libcassandra::Cassandra::SuperColumnInsertTuple>* scit,
-            std::vector<libcassandra::Cassandra::ColumnInsertTuple>* cit);
+    bool getColumnStringValue(json_t* root, std::string key, std::string& _return);
+    CassandraDataStruct* parseJsonMessage(std::string message);
+
     // disallow copy, assignment, and empty construction
     CassandraStore();
     CassandraStore(CassandraStore& rhs);
