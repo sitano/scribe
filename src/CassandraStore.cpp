@@ -172,7 +172,7 @@ bool CassandraStore::handleMessages(
 
         CassandraDataStruct* cassandraData = parseJsonMessage(message);
         if (cassandraData == NULL) {
-            LOG_OPER("could not create insert tuple for <%s>", message.c_str());
+            LOG_OPER("[%s] [Cassandra] could not create insert tuple for <%s>", categoryHandled.c_str(), message.c_str());
         } else {
             data.push_back(*cassandraData);
         }
@@ -263,7 +263,7 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
                 _return = json_string_value(jObj);
                 return true;
             case JSON_INTEGER:
-                stream << (uint64_t) json_integer_value(jObj);
+                stream << (int64_t) json_integer_value(jObj);
                 _return = stream.str();
                 return true;
             case JSON_TRUE:
