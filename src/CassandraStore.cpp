@@ -23,9 +23,9 @@ using namespace libcassandra;
 
 CassandraStore::CassandraStore(StoreQueue* storeq, const string& category,
         bool multi_category) :
-    Store(storeq, category, "cassandra", multi_category),
-            categoryAsCfName(false), keyspace(""), columnFamily(""),
-            opened(false) {
+Store(storeq, category, "cassandra", multi_category),
+categoryAsCfName(false), keyspace(""), columnFamily(""),
+opened(false) {
     // we can't open the connection until we get configured
 }
 
@@ -150,9 +150,9 @@ bool CassandraStore::handleMessages(
     }
 
     vector<Cassandra::SuperColumnInsertTuple> *scit = new std::vector<
-            Cassandra::SuperColumnInsertTuple>();
+    Cassandra::SuperColumnInsertTuple>();
     vector<Cassandra::ColumnInsertTuple> *cit = new std::vector<
-            Cassandra::ColumnInsertTuple>();
+    Cassandra::ColumnInsertTuple>();
 
     client->setKeyspace(keyspace);
 
@@ -173,7 +173,7 @@ bool CassandraStore::handleMessages(
             cout << message << endl;
             gzMessage << (*iter)->message;
             boost::iostreams::filtering_streambuf<boost::iostreams::input>
-                    gzFilter;
+            gzFilter;
             gzFilter.push(gzip_decompressor());
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
@@ -203,12 +203,11 @@ bool CassandraStore::handleMessages(
             cout << ire.why << endl;
             success = false;
         } catch (std::exception& e) {
-            close();
             cout << e.what() << endl;
             success = false;
         }
     } else if (rows > 0) {
-    	LOG_OPER("[%s] [Cassandra] wrote <%i> counter Columns", categoryHandled.c_str(), rows);
+        LOG_OPER("[%s] [Cassandra] wrote <%i> counter Columns", categoryHandled.c_str(), rows);
     } else {
         LOG_OPER("[%s] [Cassandra] nothing to write", categoryHandled.c_str());
     }
@@ -226,22 +225,22 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
         int type = json_typeof(jObj);
         stringstream stream;
         switch (type) {
-        case JSON_STRING:
-            _return = json_string_value(jObj);
-            return true;
-        case JSON_INTEGER:
-            stream << (uint64_t) json_integer_value(jObj);
-            _return = stream.str();
-            return true;
-        case JSON_TRUE:
-        	_return = "true";
-        	return true;
-        case JSON_FALSE:
-        	_return = "false";
-        	return true;
-        default:
-            LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
-            return false;
+            case JSON_STRING:
+                _return = json_string_value(jObj);
+                return true;
+            case JSON_INTEGER:
+                stream << (uint64_t) json_integer_value(jObj);
+                _return = stream.str();
+                return true;
+            case JSON_TRUE:
+                _return = "true";
+                return true;
+            case JSON_FALSE:
+                _return = "false";
+                return true;
+            default:
+                LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
+                return false;
         }
         return false;
     }
@@ -255,21 +254,21 @@ bool CassandraStore::getColumnIntValue(json_t* root, string key,
         int type = json_typeof(jObj);
         stringstream stream;
         switch (type) {
-        case JSON_STRING:
-            _return = (uint64_t)atoi(json_string_value(jObj));
-            return true;
-        case JSON_INTEGER:
-            _return = (uint64_t)json_integer_value(jObj);
-            return true;
-        case JSON_TRUE:
-			_return = 1;
-			return true;
-		case JSON_FALSE:
-			_return = 0;
-			return true;
-        default:
-            LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
-            return false;
+            case JSON_STRING:
+                _return = (uint64_t)atoi(json_string_value(jObj));
+                return true;
+            case JSON_INTEGER:
+                _return = (uint64_t)json_integer_value(jObj);
+                return true;
+            case JSON_TRUE:
+                _return = 1;
+                return true;
+            case JSON_FALSE:
+                _return = 0;
+                return true;
+            default:
+                LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
+                return false;
         }
         return false;
     }
@@ -301,11 +300,11 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
         LOG_DBG("scName: %s", scName.c_str());
 
         // get counter type
-		string counter;
-		getColumnStringValue(jsonRoot, "counter", counter);
-		bool counterColumn = (0 == strcmp(counter.c_str(), "true")
-				|| 0 == strcmp(counter.c_str(), "yes")
-				|| 0 == strcmp(counter.c_str(), "1"));
+        string counter;
+        getColumnStringValue(jsonRoot, "counter", counter);
+        bool counterColumn = (0 == strcmp(counter.c_str(), "true")
+                || 0 == strcmp(counter.c_str(), "yes")
+                || 0 == strcmp(counter.c_str(), "1"));
 
         // get actual column data
         json_t *dataObj = json_object_get(jsonRoot, "data");
@@ -315,31 +314,39 @@ bool CassandraStore::parseJsonMessage(string message, string& rowKey,
             json_object_foreach(dataObj, key, jValueObj) {
                 string columnFamily_ = (categoryAsCfName) ? categoryHandled.c_str() : columnFamily;
                 if (counterColumn) {
-                	int64_t columnValue;
-					if (!getColumnIntValue(jValueObj, "", columnValue)) {
-						LOG_DBG("could not get value for %s", key);
-					}
-                	if (scName.empty()) {
-                		client->incrementCounter(rowKey.c_str(), columnFamily_, key, columnValue, consistencyLevel);
-                	}
-                	else {
-                		client->incrementCounter(rowKey.c_str(), columnFamily_, scName.c_str(), key, columnValue, consistencyLevel);
-                	}
+                    int64_t columnValue;
+                    if (!getColumnIntValue(jValueObj, "", columnValue)) {
+                        LOG_DBG("could not get value for %s", key);
+                    }
+                    try {
+                        if (scName.empty()) {
+                            client->incrementCounter(rowKey.c_str(), columnFamily_, key, columnValue, consistencyLevel);
+                        }
+                        else {
+                            client->incrementCounter(rowKey.c_str(), columnFamily_, scName.c_str(), key, columnValue, consistencyLevel);
+                        }
+                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
+                        cout << ire.why << endl;
+                        return false;
+                    } catch (std::exception& e) {
+                        cout << e.what() << endl;
+                        return false;
+                    }
                 }
                 else {
-                	string columnValue;
-					if (!getColumnStringValue(jValueObj, "", columnValue)) {
-						LOG_DBG("could not get value for %s", key);
-					}
-					if (scName.empty()) {
-						Cassandra::ColumnInsertTuple t(columnFamily_,
-								rowKey.c_str(), key, columnValue);
-						cit->push_back(t);
-					} else {
-						Cassandra::SuperColumnInsertTuple t(columnFamily_,
-								rowKey.c_str(), scName.c_str(), key, columnValue);
-						scit->push_back(t);
-					}
+                    string columnValue;
+                    if (!getColumnStringValue(jValueObj, "", columnValue)) {
+                        LOG_DBG("could not get value for %s", key);
+                    }
+                    if (scName.empty()) {
+                        Cassandra::ColumnInsertTuple t(columnFamily_,
+                                rowKey.c_str(), key, columnValue);
+                        cit->push_back(t);
+                    } else {
+                        Cassandra::SuperColumnInsertTuple t(columnFamily_,
+                                rowKey.c_str(), scName.c_str(), key, columnValue);
+                        scit->push_back(t);
+                    }
                 }
 
                 LOG_DBG("type %i", json_typeof(jValueObj));
