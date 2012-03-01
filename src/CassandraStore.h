@@ -78,7 +78,7 @@ private:
             std::vector<libcassandra::Cassandra::SuperColumnInsertTuple>* scit,
             std::vector<libcassandra::Cassandra::ColumnInsertTuple>* cit);
     bool getColumnStringValue(json_t* root, std::string key, std::string& _return);
-    CassandraDataStruct* parseJsonMessage(std::string message);
+    std::vector<CassandraStore::CassandraDataStruct>* parseJsonMessage(std::string message);
 
     // disallow copy, assignment, and empty construction
     CassandraStore();

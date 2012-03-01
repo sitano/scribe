@@ -149,7 +149,7 @@ bool CassandraStore::handleMessages(
         }
     }
 
-    vector<CassandraDataStruct> data;
+    vector<CassandraStore::CassandraDataStruct>* data = new vector<CassandraStore::CassandraDataStruct>();
     for (logentry_vector_t::iterator iter = messages->begin(); iter != messages->end(); ++iter) {
         string message;
         stringstream gzMessage;
@@ -170,22 +170,22 @@ bool CassandraStore::handleMessages(
             message = (*iter)->message;
         }
 
-        CassandraDataStruct* cassandraData = parseJsonMessage(message);
+        vector<CassandraStore::CassandraDataStruct>* cassandraData = parseJsonMessage(message);
         if (cassandraData == NULL) {
             LOG_OPER("[%s] [Cassandra] could not create insert tuple for <%s>", categoryHandled.c_str(), message.c_str());
         } else {
-            data.push_back(*cassandraData);
+        	data->insert(data->end(), cassandraData->begin(), cassandraData->end());
         }
-        delete cassandraData;
+        delete[] cassandraData;
     }
 
     unsigned int counterRows = 0;
     vector<Cassandra::ColumnInsertTuple> cit;
     vector<Cassandra::SuperColumnInsertTuple> scit;
-    if (data.size() > 0) {
+    if (data->size() > 0) {
         client->setKeyspace(keyspace);
 
-        for (vector<CassandraDataStruct>::iterator iter = data.begin(); iter != data.end(); ++iter) {
+        for (vector<CassandraDataStruct>::iterator iter = data->begin(); iter != data->end(); ++iter) {
             if (iter->superColumnFamily.empty()) {
                 if (iter->counter) {
                     try {
@@ -281,7 +281,7 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
     return false;
 }
 
-CassandraStore::CassandraDataStruct* CassandraStore::parseJsonMessage(string message) {
+vector<CassandraStore::CassandraDataStruct>* CassandraStore::parseJsonMessage(string message) {
     if (message.empty()) {
         LOG_DBG("empty Message");
         return NULL;
@@ -289,7 +289,7 @@ CassandraStore::CassandraDataStruct* CassandraStore::parseJsonMessage(string mes
 
     string rowKey;
     string scName;
-    CassandraDataStruct *cassandraData = new CassandraDataStruct();
+    vector<CassandraStore::CassandraDataStruct>* cassandraData = new vector<CassandraStore::CassandraDataStruct>();
 
     json_error_t error;
     json_t* jsonRoot = json_loads(message.c_str(), 0, &error);
@@ -327,12 +327,16 @@ CassandraStore::CassandraDataStruct* CassandraStore::parseJsonMessage(string mes
                     LOG_DBG("could not get value for %s", key);
                     return NULL;
                 }
-                cassandraData->columnFamily = columnFamily_;
-                cassandraData->superColumnFamily = scName;
-                cassandraData->rowKey = rowKey;
-                cassandraData->columnName = key;
-                cassandraData->value = columnValue;
-                cassandraData->counter = counterColumn;
+
+                CassandraDataStruct cd;
+
+                cd.columnFamily = columnFamily_;
+                cd.superColumnFamily = scName;
+                cd.rowKey = rowKey;
+                cd.columnName = key;
+                cd.value = columnValue;
+                cd.counter = counterColumn;
+                cassandraData->push_back(cd);
 
                 LOG_DBG("key %s", key);
                 LOG_DBG("value %s", columnValue.c_str());
