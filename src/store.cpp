@@ -2504,6 +2504,7 @@ bool BucketStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) 
           // Bucket seems to be dead - temporarily remove it
           LOG_OPER("Bucket of type %s down", buckets[i]->getType().c_str());
 
+          buckets[i]->close();
           deadBuckets.push_back(buckets[i]);
           buckets.erase(buckets.begin() + i);
           numBuckets--;
