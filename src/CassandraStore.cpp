@@ -149,7 +149,7 @@ bool CassandraStore::handleMessages(
         }
     }
 
-    vector<CassandraStore::CassandraDataStruct>* data = new vector<CassandraStore::CassandraDataStruct>();
+    vector<CassandraStore::CassandraDataStruct> data;
     for (logentry_vector_t::iterator iter = messages->begin(); iter != messages->end(); ++iter) {
         string message;
         stringstream gzMessage;
@@ -174,50 +174,32 @@ bool CassandraStore::handleMessages(
         if (cassandraData == NULL) {
             LOG_OPER("[%s] [Cassandra] could not create insert tuple for <%s>", categoryHandled.c_str(), message.c_str());
         } else {
-        	data->insert(data->end(), cassandraData->begin(), cassandraData->end());
+        	data.insert(data.end(), (*cassandraData).begin(), (*cassandraData).end());
         }
-        delete[] cassandraData;
+        delete cassandraData;
     }
 
-    unsigned int counterRows = 0;
     vector<Cassandra::ColumnInsertTuple> cit;
     vector<Cassandra::SuperColumnInsertTuple> scit;
-    if (data->size() > 0) {
+    vector<Cassandra::CounterColumnInsertTuple> countercit;
+    vector<Cassandra::CounterSuperColumnInsertTuple> counterscit;
+    if (data.size() > 0) {
         client->setKeyspace(keyspace);
 
-        for (vector<CassandraDataStruct>::iterator iter = data->begin(); iter != data->end(); ++iter) {
+        for (vector<CassandraDataStruct>::iterator iter = data.begin(); iter != data.end(); ++iter) {
             if (iter->superColumnFamily.empty()) {
                 if (iter->counter) {
-                    try {
-                        client->incrementCounter(iter->rowKey, iter->columnFamily,
-                                iter->columnName, (int64_t) atoi(iter->value.c_str()),
-                                consistencyLevel);
-                        counterRows++;
-                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
-                        cout << ire.why << endl;
-                        success = false;
-                    } catch (std::exception& e) {
-                        cout << e.what() << endl;
-                        success = false;
-                    }
+                    countercit.push_back(Cassandra::CounterColumnInsertTuple(iter->columnFamily,
+                            iter->rowKey, iter->columnName, (int64_t) atoi(iter->value.c_str())));
                 } else {
                     cit.push_back(Cassandra::ColumnInsertTuple(iter->columnFamily,
                                     iter->rowKey, iter->columnName, iter->value));
                 }
             } else {
                 if (iter->counter) {
-                    try {
-                        client->incrementCounter(iter->rowKey, iter->columnFamily,
-                                iter->superColumnFamily, iter->columnName,
-                                (int64_t) atoi(iter->value.c_str()), consistencyLevel);
-                        counterRows++;
-                    } catch (org::apache::cassandra::InvalidRequestException &ire) {
-                        cout << ire.why << endl;
-                        success = false;
-                    } catch (std::exception& e) {
-                        cout << e.what() << endl;
-                        success = false;
-                    }
+                    counterscit.push_back(Cassandra::CounterSuperColumnInsertTuple(iter->columnFamily,
+                                            iter->rowKey, iter->superColumnFamily,
+                                            iter->columnName, (int64_t) atoi(iter->value.c_str())));
                 } else {
                     scit.push_back(
                             Cassandra::SuperColumnInsertTuple(iter->columnFamily,
@@ -228,18 +210,14 @@ bool CassandraStore::handleMessages(
         }
     }
 
-    if (counterRows > 0) {
-        LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> counter rows",
-                categoryHandled.c_str(), client->getHost().c_str(), counterRows);
-    }
-
-    if (scit.size() > 0 || cit.size() > 0) {
+    if (scit.size() > 0 || cit.size() > 0 || countercit.size() > 0 || counterscit.size() > 0) {
         try {
             unsigned long start = scribe::clock::nowInMsec();
-            client->batchInsert(cit, scit, consistencyLevel);
+            client->batchInsert(cit, scit, countercit, counterscit, consistencyLevel);
             unsigned long runtime = scribe::clock::nowInMsec() - start;
-            LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> rows in <%lu>",
-                    categoryHandled.c_str(), client->getHost().c_str(), scit.size() + cit.size(), runtime);
+            LOG_OPER("[%s] [Cassandra] [%s] wrote <%i> columns and <%i> counter Columns in <%lu>",
+                    categoryHandled.c_str(), client->getHost().c_str(),
+                    scit.size() + cit.size(), counterscit.size() + countercit.size(), runtime);
         } catch (org::apache::cassandra::InvalidRequestException &ire) {
             cout << ire.why << endl;
             success = false;
