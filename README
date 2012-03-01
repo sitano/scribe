@@ -120,7 +120,7 @@ Examples:
 # To build scribe with Hadoop support
 ./configure --enable-hdfs
 
-# To build scribe with Cassandra support (requires libcassandra)
+# To build scribe with Cassandra support (requires libcassandra from my repo (https://github.com/goir/libcassandra))
 ./configure --enable-cassandra
 
 # If the build process cannot find your Hadoop/Jvm installs, you may need to specify them manually:
