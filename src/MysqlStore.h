@@ -20,11 +20,10 @@
 #include "common.h"
 #include "store.h"
 #include <mysql/mysql.h>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 
-#define DEFAULT_MYSQL_PORT 3310
+#define DEFAULT_MYSQL_PORT 3306
+
+using namespace std;
 
 /*
  * This store sends messages to a Cassandra Server.
@@ -45,13 +44,14 @@ public:
     void periodicCheck();
 
 protected:
-    static const long int DEFAULT_SOCKET_TIMEOUT_MS = 5000; // 5 sec timeout
-
     // configuration
-    long int timeout;
     long int remotePort;
     std::string remoteHost;
-    std::tr1::shared_ptr<libcassandra::Cassandra> client;
+    std::string database;
+    std::string username;
+    std::string password;
+    MYSQL *connection;
+    MYSQL *mysql;
 
     // state
     bool opened;

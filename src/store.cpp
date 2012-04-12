@@ -31,6 +31,9 @@
 #ifdef USE_SCRIBE_CASSANDRA
 # include "CassandraStore.h"
 #endif
+#ifdef USE_SCRIBE_MYSQL
+# include "MysqlStore.h"
+#endif
 
 using namespace std;
 using namespace boost;
@@ -115,6 +118,11 @@ Store::createStore(StoreQueue* storeq, const string& type,
   #ifdef USE_SCRIBE_CASSANDRA
   } else if (0 == type.compare("cassandra")) {
       return shared_ptr<Store>(new CassandraStore(storeq, category,
+                                                        multi_category));
+  #endif
+  #ifdef USE_SCRIBE_MYSQL
+  } else if (0 == type.compare("mysql")) {
+      return shared_ptr<Store>(new MysqlStore(storeq, category,
                                                         multi_category));
   #endif
   } else {
