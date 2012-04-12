@@ -123,6 +123,9 @@ Examples:
 # To build scribe with Cassandra support (requires libcassandra from my repo (https://github.com/goir/libcassandra))
 ./configure --enable-cassandra
 
+# To build scribe with Mysql support (requires libmysqlclient)
+./configure --enable-mysql
+
 # If the build process cannot find your Hadoop/Jvm installs, you may need to specify them manually:
 ./configure --with-hadooppath=/usr/local/hadoop --enable-hdfs CPPFLAGS="-I/usr/local/java/include -I/usr/local/java/include/linux" LDFLAGS="-ljvm -lhdfs"
 
