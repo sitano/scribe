@@ -41,6 +41,7 @@ class scribeHandler : virtual public scribe::thrift::scribeIf,
   void initialize();
   void reinitialize();
 
+  void LogAsync(const std::vector<scribe::thrift::LogEntry>& messages);
   scribe::thrift::ResultCode Log(const std::vector<scribe::thrift::LogEntry>& messages);
 
   void getVersion(std::string& _return) {_return = scribeversion;}

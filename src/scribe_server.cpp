@@ -391,6 +391,9 @@ void scribeHandler::addMessage(
   }
 }
 
+void scribeHandler::LogAsync(const vector<LogEntry>&  messages) {
+  Log(messages);
+}
 
 ResultCode scribeHandler::Log(const vector<LogEntry>&  messages) {
   ResultCode result = TRY_LATER;
