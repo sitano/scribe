@@ -1,4 +1,5 @@
 Makefile
+Makefile.in
 config.cache
 config.guess
 config.log
@@ -12,3 +13,5 @@ mkinstalldirs
 *.a
 test/scribe.test.*
 test/scribed.out.*
+autom4te.cache
+
