@@ -180,7 +180,7 @@ AM_CONDITIONAL([STATIC], [test "$ENABLED_SHARED" = no])
 ])
 
 # Generates define flags and conditionals as specified by user.
-# This gets enabled *only* if user selects --enable-<FEATURE> otion.
+# This gets enabled *only* if user selects --enable-<FEATURE> option.
 AC_DEFUN([FB_ENABLE_FEATURE],
 [
 ENABLE=""

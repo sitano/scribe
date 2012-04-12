@@ -60,6 +60,9 @@ endif
 if USE_SCRIBE_CASSANDRA
   EXTERNAL_LIBS += -lcassandra /usr/local/lib/libjansson.a
 endif
+if USE_SCRIBE_MYSQL
+    EXTERNAL_LIBS +=-lmysqlclient
+endif
 
 # Section 2 ############################################################################
 # Set common flags recognized by automake.
@@ -109,6 +112,9 @@ if USE_SCRIBE_HDFS
 endif
 if USE_SCRIBE_CASSANDRA
   scribed_SOURCES += CassandraStore.cpp
+endif
+if USE_SCRIBE_MYSQL
+  scribed_SOURCES += MysqlStore.cpp
 endif
 scribed_LDADD = $(EXTERNAL_LIBS) $(INTERNAL_LIBS)
 
