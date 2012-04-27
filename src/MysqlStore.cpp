@@ -84,22 +84,29 @@ bool MysqlStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) {
     }
   }
   bool success = true;
-  int num_written;
+  int num_written = 0;
 
   unsigned long start = scribe::clock::nowInMsec();
   for (logentry_vector_t::iterator iter = messages->begin(); iter
       != messages->end(); ++iter) {
     int state;
     string message = (*iter)->message;
+
+    // trim leading and trailing double quotes (")
+    string::size_type pos1 = message.find_first_not_of('"');
+    string::size_type pos2 = message.find_last_not_of('"');
+    message = message.substr(pos1 == string::npos ? 0 : pos1, pos2 == string::npos ? message.length() - 1 : pos2 - pos1 + 1);
+
     state = mysql_query(connection, message.c_str());
     if (state != 0) {
       int errno;
       errno = mysql_errno(mysql);
       if (errno == 1064) {
-        LOG_OPER("[%s] Mysql query syntax error: <%s>", categoryHandled.c_str(), message.c_str());
+        LOG_OPER("[%s] Mysql query syntax error: <%s> <%s>", categoryHandled.c_str(), message.c_str(), mysql_error(connection));
       } else {
         cout << "state: " << state << endl;
         cout << mysql_error(connection) << endl;
+        cout << message << endl;
         success = false;
         break;
       }
