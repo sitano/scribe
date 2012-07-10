@@ -400,6 +400,7 @@ class NetworkStore : public Store {
   unsigned long remotePort; // long because it works with config code
   std::string serviceName;
   std::string serviceOptions;
+  std::string newCategory;  // new category for a message
   server_vector_t servers;
   unsigned long serviceCacheTimeout;
   time_t lastServiceCheck;
