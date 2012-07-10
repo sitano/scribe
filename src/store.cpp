@@ -1837,7 +1837,7 @@ void NetworkStore::configure(pStoreConf configuration, pStoreConf parent) {
   }
 
   if (!configuration->getString("new_category", newCategory)) {
-      newCategory = categoryHandled;
+      newCategory = "";
   }
 
   // if this network store dynamic configured?
@@ -2008,16 +2008,20 @@ NetworkStore::handleMessages(boost::shared_ptr<logentry_vector_t> messages) {
   int ret;
 
   if (!isOpen()) {
-    if (!open()) {
-    LOG_OPER("[%s] Could not open NetworkStore in handleMessages",
-             categoryHandled.c_str());
-    return false;
-    }
+      if (!open()) {
+          LOG_OPER("[%s] Could not open NetworkStore in handleMessages",
+                  categoryHandled.c_str());
+          return false;
+      }
   }
 
-  for (logentry_vector_t::iterator it = messages->begin();
-          it != messages->end(); ++it) {
-      (*it)->category = newCategory;
+  if (newCategory.size() > 0) {
+      LOG_OPER("[%s] Setting new category %s",
+              categoryHandled.c_str(), newCategory.c_str());
+      for (logentry_vector_t::iterator it = messages->begin();
+              it != messages->end(); ++it) {
+          (*it)->category = newCategory;
+      }
   }
 
   bool tryDummySend = shouldSendDummy(messages);
