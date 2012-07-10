@@ -63,7 +63,7 @@ endif
 if USE_SCRIBE_MYSQL
     EXTERNAL_LIBS +=-lmysqlclient
 endif
-EXTERNAL_LIBS += -lboost_iostreams /usr/local/lib/libjansson.a $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_LDFLAGS)
+EXTERNAL_LIBS += -lboost_iostreams /usr/local/lib/libjansson.a
 
 # Section 2 ############################################################################
 # Set common flags recognized by automake.
@@ -79,6 +79,7 @@ AM_CPPFLAGS += -I$(hadoop_home)/include
 AM_CPPFLAGS += $(BOOST_CPPFLAGS)
 AM_CPPFLAGS += $(FB_CPPFLAGS) $(DEBUG_CPPFLAGS)
 
+AM_LDFLAGS = $(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_FILESYSTEM_LIB) $(BOOST_REGEX_LIB)
 
 # Section 3 #############################################################################
 # GENERATE BUILD RULES
