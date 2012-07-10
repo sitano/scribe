@@ -160,8 +160,7 @@ bool CassandraStore::handleMessages(
                 && (unsigned int) (*iter)->message[1] == 0xffffff8b) {
             cout << message << endl;
             gzMessage << (*iter)->message;
-            boost::iostreams::filtering_streambuf<boost::iostreams::input>
-            gzFilter;
+            boost::iostreams::filtering_streambuf<boost::iostreams::input> gzFilter;
             gzFilter.push(gzip_decompressor());
             gzFilter.push(gzMessage);
             boost::iostreams::copy(gzFilter, rawMessage);
@@ -241,7 +240,7 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
                 _return = json_string_value(jObj);
                 return true;
             case JSON_INTEGER:
-                stream << (int64_t) json_integer_value(jObj);
+                stream << (int64_t)json_integer_value(jObj);
                 _return = stream.str();
                 return true;
             case JSON_TRUE:
@@ -250,8 +249,12 @@ bool CassandraStore::getColumnStringValue(json_t* root, string key,
             case JSON_FALSE:
                 _return = "false";
                 return true;
+            case JSON_REAL:
+				stream << (double)json_real_value(jObj);
+				_return = stream.str();
+				return true;
             default:
-                LOG_OPER("[%s] [cassandra][ERROR] value format not valid", categoryHandled.c_str());
+                LOG_OPER("[%s] [Cassandra][ERROR] value format not valid - contains NULL value ?", categoryHandled.c_str());
                 return false;
         }
         return false;
@@ -306,18 +309,18 @@ vector<CassandraStore::CassandraDataStruct>* CassandraStore::parseJsonMessage(st
                     return NULL;
                 }
 
-                CassandraDataStruct cd;
+				CassandraDataStruct cd;
 
-                cd.columnFamily = columnFamily_;
-                cd.superColumnFamily = scName;
-                cd.rowKey = rowKey;
-                cd.columnName = key;
-                cd.value = columnValue;
-                cd.counter = counterColumn;
-                cassandraData->push_back(cd);
+				cd.columnFamily = columnFamily_;
+				cd.superColumnFamily = scName;
+				cd.rowKey = rowKey;
+				cd.columnName = key;
+				cd.value = columnValue;
+				cd.counter = counterColumn;
+				cassandraData->push_back(cd);
 
-                LOG_DBG("key %s", key);
-                LOG_DBG("value %s", columnValue.c_str());
+				LOG_DBG("key %s", key);
+				LOG_DBG("value %s", columnValue.c_str());
             }
         } else {
             LOG_OPER("[cassandra][ERROR] data not set - at least one value is required: %s", message.c_str());
