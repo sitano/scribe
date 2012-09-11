@@ -34,7 +34,7 @@ class scribeHandler : virtual public scribe::thrift::scribeIf,
                               public facebook::fb303::FacebookBase {
 
  public:
-  scribeHandler(unsigned long int port, const std::string& conf_file);
+  scribeHandler(const std::string& ip, unsigned long int port, const std::string& conf_file);
   ~scribeHandler();
 
   void shutdown();
@@ -50,6 +50,7 @@ class scribeHandler : virtual public scribe::thrift::scribeIf,
   void setStatus(facebook::fb303::fb_status new_status);
   void setStatusDetails(const std::string& new_status_details);
 
+  std::string ip;
   unsigned long int port; // it's long because that's all I implemented in the conf class
 
   // number of threads processing new Thrift connections

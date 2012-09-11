@@ -46,7 +46,7 @@ static string overall_category = "scribe_overall";
 static string log_separator = ":";
 
 void print_usage(const char* program_name) {
-  cout << "Usage: " << program_name << " [-p port] [-c config_file]" << endl;
+  cout << "Usage: " << program_name << " [--ip x.x.x.x] [-p port] [-c config_file]" << endl;
 }
 
 void scribeHandler::incCounter(string category, string counter) {
@@ -76,16 +76,17 @@ int main(int argc, char **argv) {
     }
 
     int next_option;
-    const char* const short_options = "hp:c:";
+    const char* const short_options = "hi:p:c:";
     const struct option long_options[] = {
-      { "help",   0, NULL, 'h' },
-      { "port",   0, NULL, 'p' },
-      { "config", 0, NULL, 'c' },
-      { NULL,     0, NULL, 'o' },
+      { "help",   no_argument,       NULL, 'h' },
+      { "ip",     required_argument, NULL, 'i' },
+      { "port",   required_argument, NULL, 'p' },
+      { "config", required_argument, NULL, 'c' },
+      { NULL,     0, NULL,  0  },
     };
 
     unsigned long int port = 0;  // this can also be specified in the conf file, which overrides the command line
-    std::string config_file;
+    std::string config_file, ip;
     while (0 < (next_option = getopt_long(argc, argv, short_options, long_options, NULL))) {
       switch (next_option) {
       default:
@@ -93,7 +94,10 @@ int main(int argc, char **argv) {
         print_usage(argv[0]);
         exit(0);
       case 'c':
-        config_file = optarg;
+        config_file = optarg;        
+        break;
+      case 'i':
+        ip = optarg;
         break;
       case 'p':
         port = strtoul(optarg, NULL, 0);
@@ -106,10 +110,19 @@ int main(int argc, char **argv) {
       config_file = argv[optind];
     }
 
+    // check ip
+    if (!ip.empty()) {
+        hostent *host = gethostbyname(ip.c_str());
+        if (!host) {
+            LOG_OPER("ERROR: invalid ip address: %s", ip.c_str());
+            ip.clear();
+          }
+    }
+
     // seed random number generation with something reasonably unique
     srand(time(NULL) ^ getpid());
 
-    g_Handler = shared_ptr<scribeHandler>(new scribeHandler(port, config_file));
+    g_Handler = shared_ptr<scribeHandler>(new scribeHandler(ip, port, config_file));
     g_Handler->initialize();
 
     scribe::startServer(); // never returns
@@ -122,8 +135,9 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-scribeHandler::scribeHandler(unsigned long int server_port, const std::string& config_file)
+scribeHandler::scribeHandler(const std::string& ip, unsigned long int server_port, const std::string& config_file)
   : FacebookBase("Scribe"),
+    ip(ip),
     port(server_port),
     numThriftServerThreads(DEFAULT_SERVER_THREADS),
     checkPeriod(DEFAULT_CHECK_PERIOD),

@@ -10,6 +10,12 @@ http://wiki.github.com/facebook/scribe
 Keep up to date on Scribe development by joining the Scribe Discussion Group:
 http://groups.google.com/group/scribe-server/
 
+Features
+========
+
+- lot's of stuff in patches (check out commit/merge list)
+- ip - option support for cli to select ip address to bind thrift socket to
+
 
 License (See LICENSE file for full license)
 ===========================================

@@ -15,7 +15,10 @@ test/scribe.test.*
 test/scribed.out.*
 autom4te.cache
 configure
-Makefile.in
 aclocal.m4
-autom4te.cache
 
+/scribe.config
+/scribe.creator
+/scribe.creator.user
+/scribe.files
+/scribe.includes
